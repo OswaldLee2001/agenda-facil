@@ -7,6 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import settings
 from app.routers import services, professionals, working_hours
 from app.routers.appointments import router as appointments_router
+from app.routers.users import router as users_router
 
 app = FastAPI(
 	debug=settings.debug,
@@ -40,3 +41,4 @@ app.include_router(services.router)
 app.include_router(professionals.router)
 app.include_router(appointments_router)
 app.include_router(working_hours.router)
+app.include_router(users_router)

@@ -4,7 +4,7 @@
 from datetime import date, time
 from typing import Literal
 
-from pydantic import BaseModel, EmailStr, Field, field_validator, field_serializer
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator, field_serializer
 
 
 class ServiceCreate(BaseModel):
@@ -241,3 +241,16 @@ class ProfessionalWorkingHourResponse(BaseModel):
 		return value.strftime("%H:%M")
 
 	model_config = {"from_attributes": True}
+
+class UserCreate(BaseModel):
+	name: str
+	email: EmailStr
+	password: str
+
+class UserResponse(BaseModel):
+	id: int
+	name: str
+	email: EmailStr
+	is_active: bool
+
+	model_config = ConfigDict(from_attributes=True)
