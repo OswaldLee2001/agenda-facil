@@ -1,0 +1,13 @@
+services:
+  api:
+    build: .
+    container_name: agenda-facil-api
+    environment:
+      DATABASE_URL: ${DATABASE_URL_DOCKER}
+      DEBUG: "False"
+      CORS_ORIGINS: "http://localhost:3000"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    ports:
+      - "8000:8000"
+    restart: unless-stopped
