@@ -31,6 +31,7 @@ jobs:
           --health-retries=5
 
     env:
+      DATABASE_URL: postgresql+psycopg://agenda_user:agenda_test@127.0.0.1:5432/agenda_facil_test
       TEST_DATABASE_URL: postgresql+psycopg://agenda_user:agenda_test@127.0.0.1:5432/agenda_facil_test
 
     steps:
