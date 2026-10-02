@@ -71,3 +71,18 @@ def test_create_appointment_rejects_conflict():
 	data = response.json()
 
 	assert "agendamento nesse intervalo" in data["detail"].lower()
+
+def test_create_appointment_rejects_blank_client_name():
+	response = client.post(
+		"/appointments/",
+		json={
+			"professional_id": 2,
+			"service_id": 1,
+			"client_name": "  ",
+			"client_phone": "6199999999",
+			"appointment_date": "2026-10-05",
+			"appointment_time": "10:00",
+		},
+	)
+
+	assert response.status_code == 422

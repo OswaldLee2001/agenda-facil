@@ -107,3 +107,31 @@ def test_delete_service_not_found():
     response = client.delete("/services/999999")
 
     assert response.status_code == 404
+
+
+def test_create_service_rejects_blank_name():
+	response = client.post(
+		"/services/",
+		json={
+			"name": "   ",	
+			"description": "Teste",
+			"duration_minutes": 30,
+			"price_cents": 5000,	
+		},
+	)
+
+	assert response.status_code == 422
+
+def test_create_service_rejects_zero_duration():
+	response = client.post(
+		"/services/",		
+		json={
+			"name": "Serviço inválido",
+			"description": "Teste",
+			"duration_minutes": 0,
+			"price_cents": 5000,
+		},
+	)
+
+	assert response.status_code == 422
+	

@@ -139,3 +139,29 @@ def test_delete_professional_not_found():
     response = client.delete("/professionals/999999")
 
     assert response.status_code == 404
+
+def test_create_professional_rejects_invalid_email():
+	response = client.post(
+		"/professionals/",
+		json={
+			"name": "Professional com E-mail Inválido",
+			"email": "email-invalido",
+			"phone": "61977777777",
+		},
+	)
+
+	assert response.status_code == 422 
+
+
+def test_update_professional_rejects_invalid_email():
+	response = client.put(
+		"/professionals/2",
+		json={
+			"name": "João Silva Santos",
+			"email": "email-invalido",
+			"phone": "619999998888",
+			"available": True,
+		},
+	)
+
+	assert response.status_code == 422
