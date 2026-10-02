@@ -79,6 +79,10 @@ class Professional(Base):
 		back_populates="professional"
 	)
 
+	working_hours: Mapped[list["ProfessionalWorkingHour"]] = relationship(
+		back_populates="professional"
+	)
+
 class Appointments(Base):
 	__tablename__ = "Appointments"
 
@@ -132,4 +136,39 @@ class Appointments(Base):
 
 	service: Mapped["Service"] = relationship(
 		back_populates="appointments"
+	)
+
+class ProfessionalWorkingHour(Base):
+	__tablename__ = "professional_working_hours"
+
+	id: Mapped[int] = mapped_column(
+		Integer,
+		primary_key=True,
+		index=True,
+	)
+
+
+	professional_id: Mapped[int] = mapped_column(
+		Integer, 
+		ForeignKey("professionals.id"),
+		nullable=False,
+	)
+
+	weekday: Mapped[int] = mapped_column(
+		Integer,
+		nullable=False,
+	)
+
+	start_time: Mapped[str] = mapped_column(
+		String(5),
+		nullable=False,
+	)
+
+	end_time: Mapped[str] = mapped_column(
+		String(5),
+		nullable=False,
+	)
+
+	professional: Mapped["Professional"] = relationship(
+		back_populates="working_hours"
 	)

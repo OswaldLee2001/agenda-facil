@@ -2,6 +2,7 @@
 #!-*-coding:utf-8-*-
 
 from datetime import date, time
+from typing import Literal
 
 from pydantic import BaseModel, Field
 
@@ -77,7 +78,12 @@ class AppointmentUpdate(BaseModel):
 	client_phone: str = Field(min_length=1, max_length=20)
 	appointment_date: date 
 	appointment_time: time
-	status: str = "scheduled"
+	status: Literal[
+		"scheduled",
+		"confirmed",
+		"completed",
+		"cancelled",
+	] = "scheduled"
 
 class AppointmentResponse(BaseModel):
 	id: int
@@ -92,3 +98,14 @@ class AppointmentResponse(BaseModel):
 	service: ServiceSimpleResponse
 	
 
+class ProfessionalWorkingHourCreate(BaseModel):
+	weekday: int = Field(ge=0, le=6)
+	start_time: time
+	end_time: time
+
+class ProfessionalWorkingHourResponse(BaseModel):
+	id: int
+	professional_id: int
+	weekday: int
+	start_time: str
+	end_time: str
