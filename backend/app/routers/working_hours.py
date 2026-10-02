@@ -1,8 +1,6 @@
 #!/usr/bin/env python3
 #!-*-coding:utf-8-*-
 
-from datetime import datetime
-
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
@@ -75,19 +73,9 @@ def create_working_hour(
     ).all()
 
     for existing in existing_working_hours:
-        existing_start = datetime.strptime(
-            existing.start_time,
-            "%H:%M",
-        ).time()
-
-        existing_end = datetime.strptime(
-            existing.end_time,
-            "%H:%M",
-        ).time()
-
         if (
-            working_hour_data.start_time < existing_end
-            and working_hour_data.end_time > existing_start
+            working_hour_data.start_time < existing.end_time
+            and working_hour_data.end_time > existing.start_time
         ):
             raise HTTPException(
                 status_code=409,
@@ -100,8 +88,8 @@ def create_working_hour(
     working_hour = ProfessionalWorkingHour(
         professional_id=professional_id,
         weekday=working_hour_data.weekday,
-        start_time=working_hour_data.start_time.strftime("%H:%M"),
-        end_time=working_hour_data.end_time.strftime("%H:%M"),
+        start_time=working_hour_data.start_time,
+        end_time=working_hour_data.end_time,
     )
 
     db.add(working_hour)
@@ -139,8 +127,8 @@ def update_working_hour(
 
     if not working_hour:
         raise HTTPException(
-            status_code=404,
-            detail="Horário de trabalho não encontrado.",
+        status_code=404,
+        detail="Horário de trabalho não encontrado.",
         )
 
     if working_hour_data.start_time >= working_hour_data.end_time:
@@ -158,19 +146,9 @@ def update_working_hour(
     ).all()
 
     for existing in existing_working_hours:
-        existing_start = datetime.strptime(
-            existing.start_time,
-            "%H:%M",
-        ).time()
-
-        existing_end = datetime.strptime(
-            existing.end_time,
-            "%H:%M",
-        ).time()
-
         if (
-            working_hour_data.start_time < existing_end
-            and working_hour_data.end_time > existing_start
+            working_hour_data.start_time < existing.end_time
+            and working_hour_data.end_time > existing.start_time
         ):
             raise HTTPException(
                 status_code=409,
@@ -181,8 +159,8 @@ def update_working_hour(
             )
 
     working_hour.weekday = working_hour_data.weekday
-    working_hour.start_time = working_hour_data.start_time.strftime("%H:%M")
-    working_hour.end_time = working_hour_data.end_time.strftime("%H:%M")
+    working_hour.start_time = working_hour_data.start_time
+    working_hour.end_time = working_hour_data.end_time
 
     try:
         db.commit()

@@ -4,6 +4,7 @@
 import os
 import sys
 from pathlib import Path
+from datetime import date, time
 
 import pytest
 from sqlalchemy import create_engine, text
@@ -74,8 +75,8 @@ def override_database():
     working_hour = ProfessionalWorkingHour(
         professional_id=2,
         weekday=0,
-        start_time="09:00",
-        end_time="18:30",
+        start_time=time(9, 0),
+		end_time=time(18, 30),
     )
 
     db.add(working_hour)
@@ -88,8 +89,8 @@ def override_database():
         service_id=1,
         client_name="Cliente de teste",
         client_phone="61988888888",
-        appointment_date="2026-10-05",
-        appointment_time="17:00",
+		appointment_date=date(2026, 10, 5),
+		appointment_time=time(17, 0),
         status="scheduled",
     )
 

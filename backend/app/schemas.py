@@ -4,7 +4,7 @@
 from datetime import date, time
 from typing import Literal
 
-from pydantic import BaseModel, EmailStr, Field, field_validator
+from pydantic import BaseModel, EmailStr, Field, field_validator, field_serializer
 
 
 class ServiceCreate(BaseModel):
@@ -214,8 +214,8 @@ class AppointmentResponse(BaseModel):
 	service_id: int
 	client_name: str
 	client_phone: str
-	appointment_date: str
-	appointment_time: str
+	appointment_date: date
+	appointment_time: time
 	status: str
 	professional: ProfessionalSimpleResponse
 	service: ServiceSimpleResponse
@@ -233,7 +233,11 @@ class ProfessionalWorkingHourResponse(BaseModel):
 	id: int
 	professional_id: int
 	weekday: int
-	start_time: str
-	end_time: str
+	start_time: time
+	end_time: time
+
+	@field_serializer("start_time", "end_time")
+	def serialize_time(self, value: time) -> str:
+		return value.strftime("%H:%M")
 
 	model_config = {"from_attributes": True}

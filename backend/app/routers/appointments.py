@@ -44,7 +44,7 @@ def has_schedule_conflict(
 
     query = db.query(Appointments).filter(
         Appointments.professional_id == professional_id,
-        Appointments.appointment_date == appointment_date.isoformat(),
+        Appointments.appointment_date == appointment_date,
     )
 
     if exclude_appointment_id is not None:
@@ -66,14 +66,8 @@ def has_schedule_conflict(
             continue
 
         existing_start = datetime.combine(
-            datetime.strptime(
-                existing.appointment_date,
-                "%Y-%m-%d",
-            ).date(),
-            datetime.strptime(
-                existing.appointment_time,
-                "%H:%M",
-            ).time(),
+            existing.appointment_date,
+            existing.appointment_time,
         )
 
         existing_end = existing_start + timedelta(
@@ -123,24 +117,14 @@ def validate_professional_working_hours(
     ends_after_all_periods = True
 
     for working_hour in working_hours:
-        opening = datetime.strptime(
-            working_hour.start_time,
-            "%H:%M",
-        ).time()
-
-        closing = datetime.strptime(
-            working_hour.end_time,
-            "%H:%M",
-        ).time()
-
         working_start = datetime.combine(
             appointment_date,
-            opening,
+            working_hour.start_time,
         )
 
         working_end = datetime.combine(
             appointment_date,
-            closing,
+            working_hour.end_time,
         )
 
         if appointment_start >= working_start:
@@ -323,8 +307,8 @@ def create_appointment(
         service_id=appointment_data.service_id,
         client_name=appointment_data.client_name,
         client_phone=appointment_data.client_phone,
-        appointment_date=appointment_data.appointment_date.isoformat(),
-        appointment_time=appointment_data.appointment_time.strftime("%H:%M"),
+        appointment_date=appointment_data.appointment_date,
+        appointment_time=appointment_data.appointment_time,
     )
 
     db.add(appointment)
@@ -444,8 +428,8 @@ def update_appointment(
     appointment.service_id = appointment_data.service_id
     appointment.client_name = appointment_data.client_name
     appointment.client_phone = appointment_data.client_phone
-    appointment.appointment_date = appointment_data.appointment_date.isoformat()
-    appointment.appointment_time = appointment_data.appointment_time.strftime("%H:%M")
+    appointment.appointment_date = appointment_data.appointment_date
+    appointment.appointment_time = appointment_data.appointment_time
     appointment.status = appointment_data.status
 
     try:

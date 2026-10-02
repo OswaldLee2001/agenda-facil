@@ -1,7 +1,10 @@
 #!/usr/bin/env python3
 #!-*-coding:utf-8-*-
 
-from sqlalchemy import Boolean, ForeignKey, Integer, String, Text
+from datetime import date, time
+
+
+from sqlalchemy import Boolean, Date, ForeignKey, Integer, String, Text, Time
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from .database import Base
@@ -114,13 +117,13 @@ class Appointments(Base):
 		nullable=False,
 	)
 
-	appointment_date: Mapped[str] = mapped_column(
-		String(10),
+	appointment_date: Mapped[date] = mapped_column(
+		Date(),
 		nullable=False,
 	)
 
-	appointment_time: Mapped[str] = mapped_column(
-		String(5),
+	appointment_time: Mapped[time] = mapped_column(
+		Time(),
 		nullable=False,
 	)
 
@@ -159,13 +162,13 @@ class ProfessionalWorkingHour(Base):
 		nullable=False,
 	)
 
-	start_time: Mapped[str] = mapped_column(
-		String(5),
+	start_time: Mapped[time] = mapped_column(
+		Time(),
 		nullable=False,
 	)
 
-	end_time: Mapped[str] = mapped_column(
-		String(5),
+	end_time: Mapped[time] = mapped_column(
+		Time(),
 		nullable=False,
 	)
 
