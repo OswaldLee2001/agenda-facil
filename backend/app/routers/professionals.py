@@ -8,12 +8,15 @@ from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.models import Professional
+from app.core.auth import get_current_user
 from app.schemas import (
 ProfessionalCreate, 
 ProfessionalUpdate, 
 ProfessionalResponse,
 MessageResponse,
 )
+
+
 
 
 router = APIRouter(
@@ -33,6 +36,7 @@ def list_professionals(db: Session = Depends(get_db)):
 def create_professional(
 	professional_data: ProfessionalCreate,
 	db: Session = Depends(get_db),
+	current_user: dict = Depends(get_current_user),
 ):
 	professional = Professional(
 		name=professional_data.name,
@@ -80,6 +84,7 @@ def update_professional(
 	professional_id: int,
 	professional_data: ProfessionalUpdate,
 	db: Session = Depends(get_db),
+	current_user: dict = Depends(get_current_user),
 ):
 	professional=(
 		db.query(Professional)
@@ -116,6 +121,7 @@ def update_professional(
 def delete_professional(
 	professional_id: int,
 	db: Session = Depends(get_db),
+	current_user: dict = Depends(get_current_user),
 ):
 
 	professional = (

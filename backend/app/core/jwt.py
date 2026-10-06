@@ -1,0 +1,32 @@
+#!/usr/bin/env python3
+#!-*-coding:utf-8-*-
+
+from datetime import datetime, timedelta, timezone
+
+import jwt
+
+from app.core.config import settings
+
+
+def create_access_token(data: dict) -> str:
+	to_encode = data.copy()
+
+	expire = datetime.now(timezone.utc) + timedelta(
+		minutes=settings.access_token_expire_minutes
+	)
+
+	to_encode.update({"exp": expire})
+
+	return jwt.encode(
+		to_encode,
+		settings.secret_key,
+		algorithm=settings.algorithm,
+	)
+
+	
+def decode_access_token(token: str) -> dict:
+	return jwt.decode(
+		token,
+		settings.secret_key,
+		algorithms=[settings.algorithm],
+	)

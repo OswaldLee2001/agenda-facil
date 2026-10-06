@@ -4,8 +4,14 @@
 from fastapi.testclient import TestClient
 
 from main import app
+from app.core.jwt import create_access_token
 
 client = TestClient(app)
+
+TEST_TOKEN = create_access_token({"sub": "test-user"})
+AUTH_HEADERS = {
+    "Authorization": f"Bearer {TEST_TOKEN}"
+}
 
 
 def test_list_professionals():
@@ -56,6 +62,7 @@ def test_create_professional():
             "email": "teste.automatizado.2026@example.com",
             "phone": "61977777777",
         },
+        headers=AUTH_HEADERS,
     )
 
     assert response.status_code == 200
@@ -79,6 +86,7 @@ def test_create_professional_rejects_duplicate_email():
             "email": email,
             "phone": "61977777777",
         },
+        headers=AUTH_HEADERS,
     )
 
     assert first_response.status_code == 200
@@ -90,6 +98,7 @@ def test_create_professional_rejects_duplicate_email():
             "email": email,
             "phone": "61966666666",
         },
+        headers=AUTH_HEADERS,
     )
 
     assert response.status_code == 409
@@ -105,9 +114,10 @@ def test_update_professional():
         json={
             "name": "João Silva Santos",
             "email": "joao.santos@teste.com",
-            "phone": "61999998888",
+            "phone": "61999999988",
             "available": True,
         },
+        headers=AUTH_HEADERS,
     )
 
     assert response.status_code == 200
@@ -117,7 +127,7 @@ def test_update_professional():
     assert professional["id"] == 2
     assert professional["name"] == "João Silva Santos"
     assert professional["email"] == "joao.santos@teste.com"
-    assert professional["phone"] == "61999998888"
+    assert professional["phone"] == "61999999988"
     assert professional["available"] is True
 
 
@@ -130,38 +140,46 @@ def test_update_professional_not_found():
             "phone": "61955555555",
             "available": True,
         },
+        headers=AUTH_HEADERS,
     )
 
     assert response.status_code == 404
 
 
 def test_delete_professional_not_found():
-    response = client.delete("/professionals/999999")
+    response = client.delete(
+        "/professionals/999999",
+        headers=AUTH_HEADERS,
+    )
 
     assert response.status_code == 404
 
-def test_create_professional_rejects_invalid_email():
-	response = client.post(
-		"/professionals/",
-		json={
-			"name": "Professional com E-mail Inválido",
-			"email": "email-invalido",
-			"phone": "61977777777",
-		},
-	)
 
-	assert response.status_code == 422 
+def test_create_professional_rejects_invalid_email():
+    response = client.post(
+        "/professionals/",
+        json={
+            "name": "Professional com E-mail Inválido",
+            "email": "email-invalido",
+            "phone": "61977777777",
+        },
+        headers=AUTH_HEADERS,
+    )
+
+    assert response.status_code == 422
 
 
 def test_update_professional_rejects_invalid_email():
-	response = client.put(
-		"/professionals/2",
-		json={
-			"name": "João Silva Santos",
-			"email": "email-invalido",
-			"phone": "619999998888",
-			"available": True,
-		},
-	)
+    response = client.put(
+        "/professionals/2",
+        json={
+            "name": "João Silva Santos",
+            "email": "email-invalido",
+            "phone": "619999998888",
+            "available": True,
+        },
+        headers=AUTH_HEADERS,
+    )
 
-	assert response.status_code == 422
+    assert response.status_code == 422
+

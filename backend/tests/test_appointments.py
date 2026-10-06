@@ -39,7 +39,7 @@ def test_create_appointment_outside_working_hours():
 			"service_id": 1,
 			"client_name": "Teste Fora do Horário",
 			"client_phone": "61999999999",
-			"appointment_date": "2026-10-05",
+			"appointment_date": "2026-10-12",
 			"appointment_time": "19:00",
 		},
 	)
@@ -60,7 +60,7 @@ def test_create_appointment_rejects_conflict():
 			"service_id": 1,
 			"client_name": "Teste de Conflito",
 			"client_phone": "61988888888",
-			"appointment_date": "2026-10-05",
+			"appointment_date": "2026-10-12",
 			"appointment_time": "17:30",
 		},
 	)
@@ -80,7 +80,7 @@ def test_create_appointment_rejects_blank_client_name():
 			"service_id": 1,
 			"client_name": "  ",
 			"client_phone": "6199999999",
-			"appointment_date": "2026-10-05",
+			"appointment_date": "2026-10-12",
 			"appointment_time": "10:00",
 		},
 	)

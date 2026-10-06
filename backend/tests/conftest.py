@@ -89,7 +89,7 @@ def override_database():
         service_id=1,
         client_name="Cliente de teste",
         client_phone="61988888888",
-		appointment_date=date(2026, 10, 5),
+		appointment_date=date(2026, 10, 12),
 		appointment_time=time(17, 0),
         status="scheduled",
     )
