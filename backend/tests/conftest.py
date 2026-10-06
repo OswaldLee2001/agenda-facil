@@ -3,8 +3,8 @@
 
 import os
 import sys
-from pathlib import Path
 from datetime import date, time
+from pathlib import Path
 
 import pytest
 from sqlalchemy import create_engine, text
@@ -31,12 +31,14 @@ TestSessionLocal = sessionmaker(
 @pytest.fixture(autouse=True)
 def override_database():
     from main import app
+    from app.core.security import hash_password
     from app.database import get_db
     from app.models import (
         Service,
         Professional,
         Appointments,
         ProfessionalWorkingHour,
+        User,
     )
 
     db = TestSessionLocal()
@@ -46,6 +48,15 @@ def override_database():
     db.query(ProfessionalWorkingHour).delete()
     db.query(Professional).delete()
     db.query(Service).delete()
+    db.query(User).delete()
+
+    # Usuário usado pelos testes de autenticação.
+    user = User(
+        name="Usuário de Teste",
+        email="teste@teste.com",
+        hashed_password=hash_password("SenhaTeste123!"),
+        is_active=True,
+    )
 
     # Serviço usado pelos testes.
     service = Service(
@@ -66,17 +77,18 @@ def override_database():
         available=True,
     )
 
+    db.add(user)
     db.add(service)
     db.add(professional)
 
     db.flush()
 
-    # Segunda-feira: 09:00 às 18:00.
+    # Segunda-feira: 09:00 às 18:30.
     working_hour = ProfessionalWorkingHour(
         professional_id=2,
         weekday=0,
         start_time=time(9, 0),
-		end_time=time(18, 30),
+        end_time=time(18, 30),
     )
 
     db.add(working_hour)
@@ -89,8 +101,8 @@ def override_database():
         service_id=1,
         client_name="Cliente de teste",
         client_phone="61988888888",
-		appointment_date=date(2026, 10, 12),
-		appointment_time=time(17, 0),
+        appointment_date=date(2026, 10, 12),
+        appointment_time=time(17, 0),
         status="scheduled",
     )
 
@@ -143,3 +155,4 @@ def override_database():
     app.dependency_overrides.clear()
 
     db.close()
+

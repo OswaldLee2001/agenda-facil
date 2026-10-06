@@ -17,7 +17,7 @@ def get_current_user(
 		raise HTTPException(
 			status_code=status.HTTP_401_UNAUTHORIZED,
 			detail="Token inválido ou expirado",
-			headers={"WWW Authenticate": "Bearer"},
+			headers={"WWW-Authenticate": "Bearer"},
 		)
 
 	return payload
