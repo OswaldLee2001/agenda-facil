@@ -6,7 +6,8 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.models import Professional, ProfessionalWorkingHour
+from app.core.auth import get_current_user, require_role
+from app.models import Professional, ProfessionalWorkingHour, User
 from app.schemas import (
     ProfessionalWorkingHourCreate,
     ProfessionalWorkingHourResponse,
@@ -48,6 +49,7 @@ def create_working_hour(
     professional_id: int,
     working_hour_data: ProfessionalWorkingHourCreate,
     db: Session = Depends(get_db),
+	current_user: User = Depends(require_role("admin", "professional")),
 ):
     professional = db.query(Professional).filter(
         Professional.id == professional_id
@@ -117,6 +119,7 @@ def update_working_hour(
     working_hour_id: int,
     working_hour_data: ProfessionalWorkingHourCreate,
     db: Session = Depends(get_db),
+	current_user: User = Depends(require_role("admin", "professional")),
 ):
     working_hour = db.query(
         ProfessionalWorkingHour
@@ -184,6 +187,7 @@ def delete_working_hour(
     professional_id: int,
     working_hour_id: int,
     db: Session = Depends(get_db),
+	current_user: User = Depends(require_role("admin", "professional")),
 ):
     working_hour = db.query(
         ProfessionalWorkingHour

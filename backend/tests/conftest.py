@@ -7,8 +7,11 @@ from datetime import date, time
 from pathlib import Path
 
 import pytest
+from dotenv import load_dotenv
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker
+
+load_dotenv()
 
 ROOT_DIR = Path(__file__).resolve().parent.parent
 
@@ -50,12 +53,31 @@ def override_database():
     db.query(Service).delete()
     db.query(User).delete()
 
-    # Usuário usado pelos testes de autenticação.
+    # Usuário cliente usado pelos testes de autenticação.
     user = User(
         name="Usuário de Teste",
         email="teste@teste.com",
         hashed_password=hash_password("SenhaTeste123!"),
         is_active=True,
+        role="client",
+    )
+
+    # Usuário administrador usado pelos testes de autorização.
+    admin_user = User(
+        name="Administrador de Teste",
+        email="admin@teste.com",
+        hashed_password=hash_password("AdminTeste123!"),
+        is_active=True,
+        role="admin",
+    )
+
+    # Usuário profissional usado pelos testes de autorização.
+    professional_user = User(
+        name="Profissional de Teste",
+        email="profissional@teste.com",
+        hashed_password=hash_password("ProfissionalTeste123!"),
+        is_active=True,
+        role="professional",
     )
 
     # Serviço usado pelos testes.
@@ -78,6 +100,8 @@ def override_database():
     )
 
     db.add(user)
+    db.add(admin_user)
+    db.add(professional_user)
     db.add(service)
     db.add(professional)
 

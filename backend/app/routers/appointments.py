@@ -8,10 +8,12 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from app.database import get_db
+from app.core.auth import get_current_user
 from app.models import (
     Appointments,
     Professional,
     ProfessionalWorkingHour,
+	User,
     Service,
 )
 from app.schemas import (
@@ -235,6 +237,7 @@ def validate_status_transition(
 @router.get("/", response_model=list[AppointmentResponse])
 def list_appointments(
     db: Session = Depends(get_db),
+	current_user: User = Depends(get_current_user),
 ):
     appointments = db.query(Appointments).all()
     return appointments
@@ -331,6 +334,7 @@ def create_appointment(
 def get_appointment(
     appointment_id: int,
     db: Session = Depends(get_db),
+	current_user: User = Depends(get_current_user),
 ):
     appointment = db.query(Appointments).filter(
         Appointments.id == appointment_id
@@ -350,6 +354,7 @@ def update_appointment(
     appointment_id: int,
     appointment_data: AppointmentUpdate,
     db: Session = Depends(get_db),
+	current_user: User = Depends(get_current_user),
 ):
     appointment = db.query(Appointments).filter(
         Appointments.id == appointment_id
@@ -450,6 +455,7 @@ def update_appointment(
 def delete_appointment(
     appointment_id: int,
     db: Session = Depends(get_db),
+	current_user: User = Depends(get_current_user),
 ):
     appointment = db.query(Appointments).filter(
         Appointments.id == appointment_id

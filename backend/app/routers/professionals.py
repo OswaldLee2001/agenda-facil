@@ -7,8 +7,8 @@ from sqlalchemy.orm import Session
 
 
 from app.database import get_db
-from app.models import Professional
-from app.core.auth import get_current_user
+from app.models import Professional, User
+from app.core.auth import get_current_user, require_role
 from app.schemas import (
 ProfessionalCreate, 
 ProfessionalUpdate, 
@@ -36,7 +36,7 @@ def list_professionals(db: Session = Depends(get_db)):
 def create_professional(
 	professional_data: ProfessionalCreate,
 	db: Session = Depends(get_db),
-	current_user: dict = Depends(get_current_user),
+	current_user: User = Depends(require_role("admin")),
 ):
 	professional = Professional(
 		name=professional_data.name,
@@ -84,7 +84,7 @@ def update_professional(
 	professional_id: int,
 	professional_data: ProfessionalUpdate,
 	db: Session = Depends(get_db),
-	current_user: dict = Depends(get_current_user),
+	current_user: User = Depends(require_role("admin")),
 ):
 	professional=(
 		db.query(Professional)
@@ -121,7 +121,7 @@ def update_professional(
 def delete_professional(
 	professional_id: int,
 	db: Session = Depends(get_db),
-	current_user: dict = Depends(get_current_user),
+	current_user: User = Depends(require_role("admin")),
 ):
 
 	professional = (
@@ -144,3 +144,11 @@ def delete_professional(
 	}
 
 
+def test_delete_professional_rejects_client():
+	response = client.delete(
+		"/professionals/2",
+		headers=get_auth_headers(),
+	)
+
+	assert response.status_code == 403	
+	assert "permissão" in response.json()["detail"].lower()

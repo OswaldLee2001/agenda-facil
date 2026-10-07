@@ -7,6 +7,61 @@ from main import app
 
 client = TestClient(app)
 
+LOGIN_DATA = {
+    "email": "teste@teste.com",
+    "password": "SenhaTeste123!",
+}
+
+
+def get_auth_headers():
+    response = client.post(
+        "/auth/login",
+        json=LOGIN_DATA,
+    )
+
+    assert response.status_code == 200
+
+    token = response.json()["access_token"]
+
+    return {
+        "Authorization": f"Bearer {token}",
+    }
+
+
+def get_admin_headers():
+    response = client.post(
+        "/auth/login",
+        json={
+            "email": "admin@teste.com",
+            "password": "AdminTeste123!",
+        },
+    )
+
+    assert response.status_code == 200
+
+    token = response.json()["access_token"]
+
+    return {
+        "Authorization": f"Bearer {token}",
+    }
+
+def get_professional_headers():
+	response = client.post(
+		"/auth/login",
+		json={
+			"email": "profissional@teste.com",
+			"password": "ProfissionalTeste123!",
+		},
+	)
+
+	assert response.status_code == 200
+	
+	token = response.json()["access_token"]
+	
+	return {
+		"Authorization": f"Bearer {token}",
+	}
+
 
 def test_list_working_hours():
     response = client.get(
@@ -37,6 +92,19 @@ def test_list_working_hours_professional_not_found():
     assert response.status_code == 404
 
 
+def test_create_working_hour_requires_authentication():
+    response = client.post(
+        "/professionals/2/working-hours/",
+        json={
+            "weekday": 6,
+            "start_time": "08:00",
+            "end_time": "09:00",
+        },
+    )
+
+    assert response.status_code == 401
+
+
 def test_create_working_hour_rejects_overlap():
     response = client.post(
         "/professionals/2/working-hours/",
@@ -45,6 +113,7 @@ def test_create_working_hour_rejects_overlap():
             "start_time": "15:00",
             "end_time": "17:00",
         },
+        headers=get_professional_headers(),
     )
 
     assert response.status_code == 409
@@ -62,6 +131,7 @@ def test_create_working_hour_rejects_invalid_interval():
             "start_time": "17:00",
             "end_time": "15:00",
         },
+        headers=get_professional_headers(),
     )
 
     assert response.status_code == 409
@@ -79,12 +149,15 @@ def test_create_working_hour_professional_not_found():
             "start_time": "08:00",
             "end_time": "09:00",
         },
+        headers=get_professional_headers(),
     )
 
     assert response.status_code == 404
 
 
 def test_create_and_delete_working_hour():
+    headers = get_professional_headers()
+
     create_response = client.post(
         "/professionals/2/working-hours/",
         json={
@@ -92,6 +165,7 @@ def test_create_and_delete_working_hour():
             "start_time": "08:00",
             "end_time": "09:00",
         },
+        headers=headers,
     )
 
     assert create_response.status_code == 200
@@ -106,7 +180,8 @@ def test_create_and_delete_working_hour():
     working_hour_id = working_hour["id"]
 
     delete_response = client.delete(
-        f"/professionals/2/working-hours/{working_hour_id}"
+        f"/professionals/2/working-hours/{working_hour_id}",
+        headers=headers,
     )
 
     assert delete_response.status_code == 200
@@ -116,9 +191,194 @@ def test_create_and_delete_working_hour():
     assert "excluído com sucesso" in data["message"]
 
 
-def test_delete_working_hour_not_found():
+def test_delete_working_hour_requires_authentication():
     response = client.delete(
         "/professionals/2/working-hours/999999"
     )
 
+    assert response.status_code == 401
+
+
+def test_delete_working_hour_not_found():
+    response = client.delete(
+        "/professionals/2/working-hours/999999",
+        headers=get_professional_headers(),
+    )
+
     assert response.status_code == 404
+
+
+def test_create_working_hour_rejects_client():
+    response = client.post(
+        "/professionals/2/working-hours/",
+        json={
+            "weekday": 1,
+            "start_time": "09:00",
+            "end_time": "18:00",
+        },
+        headers=get_auth_headers(),
+    )
+
+    assert response.status_code == 403
+    assert "permissão" in response.json()["detail"].lower()
+
+
+def test_update_working_hour_rejects_client():
+    response = client.put(
+        "/professionals/2/working-hours/1",
+        json={
+            "weekday": 1,
+            "start_time": "10:00",
+            "end_time": "17:00",
+        },
+        headers=get_auth_headers(),
+    )
+
+    assert response.status_code == 403
+    assert "permissão" in response.json()["detail"].lower()
+
+
+def test_delete_working_hour_rejects_client():
+    response = client.delete(
+        "/professionals/2/working-hours/1",
+        headers=get_auth_headers(),
+    )
+
+    assert response.status_code == 403
+    assert "permissão" in response.json()["detail"].lower()
+
+
+def test_create_working_hour_allows_admin():
+    response = client.post(
+        "/professionals/2/working-hours/",
+        json={
+            "weekday": 6,
+            "start_time": "10:00",
+            "end_time": "11:00",
+        },
+        headers=get_admin_headers(),
+    )
+
+    assert response.status_code == 200
+
+
+def test_update_working_hour_allows_admin():
+    create_response = client.post(
+        "/professionals/2/working-hours/",
+        json={
+            "weekday": 6,
+            "start_time": "10:00",
+            "end_time": "11:00",
+        },
+        headers=get_admin_headers(),
+    )
+
+    assert create_response.status_code == 200
+
+    working_hour_id = create_response.json()["id"]
+
+    update_response = client.put(
+        f"/professionals/2/working-hours/{working_hour_id}",
+        json={
+            "weekday": 6,
+            "start_time": "10:00",
+            "end_time": "12:00",
+        },
+        headers=get_admin_headers(),
+    )
+
+    assert update_response.status_code == 200
+
+def test_delete_working_hour_allows_admin():
+	create_response = client.post(
+		"/professionals/2/working-hours/",
+		json={
+			"weekday": 6,
+			"start_time": "13:00",
+			"end_time": "14:00",
+		},
+		headers=get_admin_headers(),
+	)
+
+	assert create_response.status_code == 200
+	
+	working_hour_id = create_response.json()["id"]
+
+	delete_response = client.delete(
+		f"/professionals/2/working-hours/{working_hour_id}",
+		headers=get_admin_headers(),
+	)
+
+	assert delete_response.status_code == 200
+	
+	data = delete_response.json()
+
+	assert "excluído com sucesso" in data["message"]
+	
+
+def test_create_working_hour_allows_professional():
+	response = client.post(
+		"/professionals/2/working-hours",
+		json={
+			"weekday": 6,
+			"start_time": "15:00",
+			"end_time": "16:00",
+		},
+		headers=get_professional_headers(),
+	)
+
+	assert response.status_code == 200
+
+def test_update_working_hour_allows_professional():
+	create_response = client.post(
+		"/professionals/2/working-hours",	
+		json={
+			"weekday": 6,
+			"start_time": "15:00",
+			"end_time": "16:00",
+		},
+		headers=get_professional_headers()
+	)
+
+	assert create_response.status_code == 200
+	
+	working_hour_id = create_response.json()["id"]
+
+	update_response = client.put(
+		f"/professionals/2/working-hours/{working_hour_id}",
+		json={
+			"weekday": 6,
+			"start_time": "15:00",
+			"end_time": "17:00",
+		},
+		headers=get_professional_headers(),
+	)
+
+	assert update_response.status_code == 200
+
+
+def test_delete_working_hour_allows_professional():
+    create_response = client.post(
+        "/professionals/2/working-hours",
+        json={
+            "weekday": 6,
+            "start_time": "15:00",
+            "end_time": "16:00",
+        },
+        headers=get_professional_headers(),
+    )
+
+    assert create_response.status_code == 200
+
+    working_hour_id = create_response.json()["id"]
+
+    delete_response = client.delete(
+        f"/professionals/2/working-hours/{working_hour_id}",
+        headers=get_professional_headers(),
+    )
+
+    assert delete_response.status_code == 200
+
+    data = delete_response.json()
+
+    assert "excluído com sucesso" in data["message"]
