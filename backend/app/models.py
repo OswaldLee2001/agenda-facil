@@ -78,6 +78,13 @@ class Professional(Base):
 		default=True,
 	)
 
+	user_id: Mapped[int | None] = mapped_column(
+		Integer,
+		ForeignKey("users.id"),
+		nullable=True,
+		unique=True,
+	)
+
 	appointments: Mapped[list["Appointments"]] = relationship(
 		back_populates="professional"
 	)
@@ -115,6 +122,13 @@ class Appointments(Base):
 	client_phone: Mapped[str] = mapped_column(
 		String(20),
 		nullable=False,
+	)
+
+	client_user_id: Mapped[int | None] = mapped_column(
+		Integer,
+		ForeignKey("users.id"),
+		nullable=True,
+		index=True,
 	)
 
 	appointment_date: Mapped[date] = mapped_column(

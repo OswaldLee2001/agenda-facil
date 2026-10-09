@@ -90,21 +90,23 @@ def override_database():
         available=True,
     )
 
-    # Profissional usado pelos testes.
+    db.add(user)
+    db.add(admin_user)
+    db.add(professional_user)
+    db.add(service)
+    db.flush()
+
+    # Profissional associado à sua conta de acesso.
     professional = Professional(
         id=2,
         name="João Silva Santos",
         email="joao.santos@teste.com",
         phone="61999998888",
         available=True,
+        user_id=professional_user.id,
     )
 
-    db.add(user)
-    db.add(admin_user)
-    db.add(professional_user)
-    db.add(service)
     db.add(professional)
-
     db.flush()
 
     # Segunda-feira: 09:00 às 18:30.
@@ -128,6 +130,7 @@ def override_database():
         appointment_date=date(2026, 10, 12),
         appointment_time=time(17, 0),
         status="scheduled",
+        client_user_id=user.id,
     )
 
     db.add(appointment)

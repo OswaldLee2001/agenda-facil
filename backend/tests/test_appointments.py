@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-#!-*-coding:utf-8-*-
+# -*- coding: utf-8 -*-
 
 from fastapi.testclient import TestClient
 
@@ -13,19 +13,27 @@ LOGIN_DATA = {
 }
 
 
-def get_auth_headers():
+def get_headers_for(email, password):
     response = client.post(
         "/auth/login",
-        json=LOGIN_DATA,
+        json={
+            "email": email,
+            "password": password,
+        },
     )
 
     assert response.status_code == 200
 
-    token = response.json()["access_token"]
-
     return {
-        "Authorization": f"Bearer {token}",
+        "Authorization": f"Bearer {response.json()['access_token']}",
     }
+
+
+def get_auth_headers():
+    return get_headers_for(
+        LOGIN_DATA["email"],
+        LOGIN_DATA["password"],
+    )
 
 
 def test_list_appointment():
@@ -99,6 +107,7 @@ def test_create_appointment_outside_working_hours():
             "appointment_date": "2026-10-12",
             "appointment_time": "19:00",
         },
+        headers=get_auth_headers(),
     )
 
     assert response.status_code == 409
@@ -119,6 +128,7 @@ def test_create_appointment_rejects_conflict():
             "appointment_date": "2026-10-12",
             "appointment_time": "17:30",
         },
+        headers=get_auth_headers(),
     )
 
     assert response.status_code == 409
@@ -139,6 +149,7 @@ def test_create_appointment_rejects_blank_client_name():
             "appointment_date": "2026-10-12",
             "appointment_time": "10:00",
         },
+        headers=get_auth_headers(),
     )
 
     assert response.status_code == 422
@@ -172,7 +183,7 @@ def test_get_appointment_authenticated():
     assert appointment["id"] == appointment_id
 
 
-def test_update_appointment_authenticated():
+def test_update_appointment_client_cannot_change_reservation_details():
     headers = get_auth_headers()
 
     list_response = client.get(
@@ -202,16 +213,15 @@ def test_update_appointment_authenticated():
         headers=headers,
     )
 
-    assert response.status_code == 200
+    assert response.status_code == 403
 
-    appointment = response.json()
+    assert (
+        "dados da reserva não podem ser modificados"
+        in response.json()["detail"]
+    )
 
-    assert appointment["id"] == appointment_id
-    assert appointment["client_name"] == "Cliente atualizado"
-    assert appointment["client_phone"] == "61977777777"
 
-
-def test_delete_appointment_authenticated():
+def test_delete_appointment_client_cannot_delete_appointment():
     headers = get_auth_headers()
 
     create_response = client.post(
@@ -224,6 +234,7 @@ def test_delete_appointment_authenticated():
             "appointment_date": "2026-10-12",
             "appointment_time": "10:00",
         },
+        headers=headers,
     )
 
     assert create_response.status_code == 200
@@ -235,8 +246,4 @@ def test_delete_appointment_authenticated():
         headers=headers,
     )
 
-    assert delete_response.status_code == 200
-
-    data = delete_response.json()
-
-    assert "excluído com sucesso" in data["message"]
+    assert delete_response.status_code == 403

@@ -234,23 +234,105 @@ def validate_status_transition(
         )
 
 
+
+def get_linked_professional(db: Session, current_user: User) -> Professional:
+    professional = (
+        db.query(Professional)
+        .filter(Professional.user_id == current_user.id)
+        .first()
+    )
+
+    if professional is None:
+        raise HTTPException(
+            status_code=403,
+            detail="Sua conta não está vinculada a um perfil profissional.",
+        )
+
+    return professional
+
+
+def ensure_appointment_access(
+    db: Session,
+    appointment: Appointments,
+    current_user: User,
+) -> None:
+    if current_user.role == "admin":
+        return
+
+    if current_user.role == "client":
+        if appointment.client_user_id != current_user.id:
+            raise HTTPException(
+                status_code=404,
+                detail="Agendamento não encontrado.",
+            )
+        return
+
+    if current_user.role == "professional":
+        professional = get_linked_professional(db, current_user)
+        if appointment.professional_id != professional.id:
+            raise HTTPException(
+                status_code=404,
+                detail="Agendamento não encontrado.",
+            )
+        return
+
+    raise HTTPException(
+        status_code=403,
+        detail="Você não tem permissão para realizar esta ação.",
+    )
+
+
 @router.get("/", response_model=list[AppointmentResponse])
 def list_appointments(
     db: Session = Depends(get_db),
-	current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_user),
 ):
-    appointments = db.query(Appointments).all()
-    return appointments
+    query = db.query(Appointments)
+
+    if current_user.role == "client":
+        query = query.filter(Appointments.client_user_id == current_user.id)
+    elif current_user.role == "professional":
+        professional = get_linked_professional(db, current_user)
+        query = query.filter(
+            Appointments.professional_id == professional.id
+        )
+    elif current_user.role != "admin":
+        raise HTTPException(
+            status_code=403,
+            detail="Você não tem permissão para realizar esta ação.",
+        )
+
+    return query.all()
 
 
 @router.post("/", response_model=AppointmentResponse)
 def create_appointment(
     appointment_data: AppointmentCreate,
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
-    professional = db.query(Professional).filter(
-        Professional.id == appointment_data.professional_id
-    ).first()
+    client_user_id = None
+
+    if current_user.role == "client":
+        client_user_id = current_user.id
+    elif current_user.role == "professional":
+        linked_professional = get_linked_professional(db, current_user)
+        if appointment_data.professional_id != linked_professional.id:
+            raise HTTPException(
+                status_code=403,
+                detail="Você só pode criar agendamentos para o seu próprio perfil.",
+            )
+    elif current_user.role != "admin":
+        raise HTTPException(
+            status_code=403,
+            detail="Você não tem permissão para realizar esta ação.",
+        )
+
+    professional = (
+        db.query(Professional)
+        .filter(Professional.id == appointment_data.professional_id)
+        .first()
+    )
 
     if not professional:
         raise HTTPException(
@@ -264,9 +346,11 @@ def create_appointment(
             detail="O profissional não está disponível para agendamentos.",
         )
 
-    service = db.query(Service).filter(
-        Service.id == appointment_data.service_id
-    ).first()
+    service = (
+        db.query(Service)
+        .filter(Service.id == appointment_data.service_id)
+        .first()
+    )
 
     if not service:
         raise HTTPException(
@@ -312,6 +396,7 @@ def create_appointment(
         client_phone=appointment_data.client_phone,
         appointment_date=appointment_data.appointment_date,
         appointment_time=appointment_data.appointment_time,
+        client_user_id=client_user_id,
     )
 
     db.add(appointment)
@@ -326,7 +411,6 @@ def create_appointment(
         )
 
     db.refresh(appointment)
-
     return appointment
 
 
@@ -334,18 +418,21 @@ def create_appointment(
 def get_appointment(
     appointment_id: int,
     db: Session = Depends(get_db),
-	current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_user),
 ):
-    appointment = db.query(Appointments).filter(
-        Appointments.id == appointment_id
-    ).first()
+    appointment = (
+        db.query(Appointments)
+        .filter(Appointments.id == appointment_id)
+        .first()
+    )
 
-    if not appointment:
+    if appointment is None:
         raise HTTPException(
             status_code=404,
-            detail="Agendamento não encontrado",
+            detail="Agendamento não encontrado.",
         )
 
+    ensure_appointment_access(db, appointment, current_user)
     return appointment
 
 
@@ -354,26 +441,82 @@ def update_appointment(
     appointment_id: int,
     appointment_data: AppointmentUpdate,
     db: Session = Depends(get_db),
-	current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_user),
 ):
-    appointment = db.query(Appointments).filter(
-        Appointments.id == appointment_id
-    ).first()
+    appointment = (
+        db.query(Appointments)
+        .filter(Appointments.id == appointment_id)
+        .first()
+    )
 
-    if not appointment:
+    if appointment is None:
         raise HTTPException(
             status_code=404,
-            detail="Agendamento não encontrado."
+            detail="Agendamento não encontrado.",
         )
+
+    ensure_appointment_access(db, appointment, current_user)
+
+    if current_user.role in {"client", "professional"}:
+        details_changed = (
+            appointment_data.professional_id != appointment.professional_id
+            or appointment_data.service_id != appointment.service_id
+            or appointment_data.client_name != appointment.client_name
+            or appointment_data.client_phone != appointment.client_phone
+            or appointment_data.appointment_date != appointment.appointment_date
+            or appointment_data.appointment_time != appointment.appointment_time
+        )
+
+        if details_changed:
+            raise HTTPException(
+                status_code=403,
+                detail=(
+                    "Este perfil só pode alterar o status do agendamento; "
+                    "os dados da reserva não podem ser modificados."
+                ),
+            )
+
+        if (
+            current_user.role == "client"
+            and appointment_data.status not in {
+                appointment.status,
+                "cancelled",
+            }
+        ):
+            raise HTTPException(
+                status_code=403,
+                detail="Clientes só podem cancelar seus próprios agendamentos.",
+            )
+
+        validate_status_transition(
+            current_status=appointment.status,
+            new_status=appointment_data.status,
+        )
+
+        appointment.status = appointment_data.status
+
+        try:
+            db.commit()
+        except SQLAlchemyError:
+            db.rollback()
+            raise HTTPException(
+                status_code=500,
+                detail="Erro ao atualizar o agendamento.",
+            )
+
+        db.refresh(appointment)
+        return appointment
 
     validate_status_transition(
         current_status=appointment.status,
         new_status=appointment_data.status,
     )
 
-    professional = db.query(Professional).filter(
-        Professional.id == appointment_data.professional_id
-    ).first()
+    professional = (
+        db.query(Professional)
+        .filter(Professional.id == appointment_data.professional_id)
+        .first()
+    )
 
     if not professional:
         raise HTTPException(
@@ -387,9 +530,11 @@ def update_appointment(
             detail="O profissional não está disponível para agendamentos.",
         )
 
-    service = db.query(Service).filter(
-        Service.id == appointment_data.service_id
-    ).first()
+    service = (
+        db.query(Service)
+        .filter(Service.id == appointment_data.service_id)
+        .first()
+    )
 
     if not service:
         raise HTTPException(
@@ -447,7 +592,6 @@ def update_appointment(
         )
 
     db.refresh(appointment)
-
     return appointment
 
 
@@ -455,16 +599,24 @@ def update_appointment(
 def delete_appointment(
     appointment_id: int,
     db: Session = Depends(get_db),
-	current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_user),
 ):
-    appointment = db.query(Appointments).filter(
-        Appointments.id == appointment_id
-    ).first()
+    if current_user.role != "admin":
+        raise HTTPException(
+            status_code=403,
+            detail="Somente administradores podem excluir agendamentos.",
+        )
 
-    if not appointment:
+    appointment = (
+        db.query(Appointments)
+        .filter(Appointments.id == appointment_id)
+        .first()
+    )
+
+    if appointment is None:
         raise HTTPException(
             status_code=404,
-            detail="Agendamento não encontrado."
+            detail="Agendamento não encontrado.",
         )
 
     db.delete(appointment)
@@ -478,6 +630,4 @@ def delete_appointment(
             detail="Erro ao excluir o agendamento.",
         )
 
-    return {
-        "message": "Agendamento excluído com sucesso."
-    }
+    return {"message": "Agendamento excluído com sucesso."}
