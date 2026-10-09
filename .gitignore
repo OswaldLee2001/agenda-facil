@@ -1,0 +1,18 @@
+# Configurações locais e segredos
+.env
+.env.*
+!.env.example
+!.env.*.example
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+
+# Testes e cobertura
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Backups locais do banco de dados
+backups/
