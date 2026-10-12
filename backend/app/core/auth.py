@@ -1,5 +1,9 @@
+#!/usr/bin/env python3
+#!-*-coding:utf-8-*-
+
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from jwt.exceptions import InvalidTokenError
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -18,7 +22,7 @@ def get_current_user(
 
     try:
         payload = decode_access_token(token)
-    except Exception:
+    except InvalidTokenError:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Token inválido ou expirado",
@@ -27,16 +31,16 @@ def get_current_user(
 
     user_id = payload.get("sub")
 
-    if not user_id:
+    if not isinstance(user_id, str) or not user_id.isdecimal():
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Token inválido.",
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    try:
-        user_id = int(user_id)
-    except (TypeError, ValueError):
+    user_id = int(user_id)
+
+    if user_id <= 0:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Token inválido.",
@@ -63,19 +67,18 @@ def get_current_user(
 
     return user
 
+
 def require_role(*allowed_roles: str):
-	def role_checker(
-		current_user: User = Depends(get_current_user),
-	):
-		if current_user.role not in allowed_roles:
-			raise HTTPException(
-				status_code=status.HTTP_403_FORBIDDEN,	
-				detail="Você não tem permissão para realizar esta ação.",
-		)
-		
-		return current_user 
+    def role_checker(
+        current_user: User = Depends(get_current_user),
+    ):
+        if current_user.role not in allowed_roles:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Você não tem permissão para realizar esta ação.",
+            )
 
-	return role_checker	
+        return current_user
 
+    return role_checker
 
-	
