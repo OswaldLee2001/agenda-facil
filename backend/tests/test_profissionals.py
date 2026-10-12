@@ -275,3 +275,16 @@ def test_delete_professional_rejects_client():
 	
 	assert response.status_code == 403
 	assert "permissão" in response.json()["detail"].lower()
+
+def test_delete_profissional_with_appointments_returns_conflict():
+	response = client.delete(
+		"/professionals/2",
+		headers=get_admin_headers(),
+	)
+
+	assert response.status_code == 409
+	assert "registros vinculados" in response.json()["detail"].lower()
+
+	professional_response = client.get("/professionals/2")
+
+	assert professional_response.status_code == 200

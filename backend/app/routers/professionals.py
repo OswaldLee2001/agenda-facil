@@ -8,14 +8,13 @@ from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.models import Professional, User
-from app.core.auth import get_current_user, require_role
+from app.core.auth import require_role
 from app.schemas import (
 ProfessionalCreate, 
 ProfessionalUpdate, 
 ProfessionalResponse,
 MessageResponse,
 )
-
 
 
 
@@ -119,36 +118,35 @@ def update_professional(
 
 @router.delete("/{professional_id}", response_model=MessageResponse)
 def delete_professional(
-	professional_id: int,
-	db: Session = Depends(get_db),
-	current_user: User = Depends(require_role("admin")),
+    professional_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role("admin")),
 ):
+    professional = (
+        db.query(Professional)
+        .filter(Professional.id == professional_id)
+        .first()
+    )
 
-	professional = (
-		db.query(Professional)
-		.filter(Professional.id == professional_id)
-		.first()
-	)
+    if not professional:
+        raise HTTPException(
+            status_code=404,
+            detail="Profissional não encontrado",
+        )
 
-	if not professional:
-		raise HTTPException(
-			status_code=404,
-			detail="Profissional não encontrado",
-	)
+    try:
+        db.delete(professional)
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                "Não é possível excluir o profissional porque "
+                "existem registros vinculados."
+            ),
+        )
 
-	db.delete(professional)
-	db.commit()
-
-	return {
-		"message": "Profissional excluído com sucesso."
-	}
-
-
-def test_delete_professional_rejects_client():
-	response = client.delete(
-		"/professionals/2",
-		headers=get_auth_headers(),
-	)
-
-	assert response.status_code == 403	
-	assert "permissão" in response.json()["detail"].lower()
+    return {
+        "message": "Profissional excluído com sucesso."
+    }
