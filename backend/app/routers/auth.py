@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-#!-*-coding:utf-8-*-
+# -*- coding: utf-8 -*-
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
@@ -13,50 +13,49 @@ from app.schemas import UserLogin
 
 
 router = APIRouter(
-	prefix="/auth",
-	tags=["auth"],
+    prefix="/auth",
+    tags=["auth"],
 )
+
 
 @router.post("/login")
 def login(
-	user: UserLogin,
-	db: Session = Depends(get_db),
+    user: UserLogin,
+    db: Session = Depends(get_db),
 ):
+    existing_user = db.scalar(
+        select(User).where(User.email == user.email)
+    )
 
-	existing_user = db.scalar(
-		select(User).where(User.email == user.email)
-	)
+    if not existing_user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Email ou senha inválidos.",
+        )
 
-	if not existing_user:
-		raise HTTPException(
-			status_code=status.HTTP_401_UNAUTHORIZED,
-			detail="Email ou senha inválidos.",
-	)
+    if not verify_password(
+        user.password,
+        existing_user.hashed_password,
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Email ou senha inválidos.",
+        )
 
-	if not verify_password(
-		user.password,
-		existing_user.hashed_password,
-	):
-		raise HTTPException(
-			status_code=status.HTTP_401_UNAUTHORIZED,
-			detail="Email ou senha inválidos.",
-	)
+    if not existing_user.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Usuário inativo.",
+        )
 
-	access_token = create_access_token(
-		{
-			"sub": str(existing_user.id),
-			"email": existing_user.email,
-		}
-	)
+    access_token = create_access_token(
+        {
+            "sub": str(existing_user.id),
+            "email": existing_user.email,
+        }
+    )
 
-	return {
-		"access_token": access_token,
-		"token_type": "bearer",
-	}
-
-
-
-
-
-
-
+    return {
+        "access_token": access_token,
+        "token_type": "bearer",
+    }

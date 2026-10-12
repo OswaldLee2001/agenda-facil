@@ -1,15 +1,18 @@
 #!/usr/bin/env python3
-#!-*-coding:utf-8-*-
+# -*- coding: utf-8 -*-
 
 from datetime import datetime, timedelta, timezone
 
+import jwt
 from fastapi.testclient import TestClient
 from sqlalchemy import select
 
 from main import app
+from app.core.config import settings
 from app.core.jwt import create_access_token
 from app.database import get_db
 from app.models import User
+
 
 client = TestClient(app)
 
@@ -83,9 +86,9 @@ def test_protected_endpoint_with_valid_token():
     login_response = client.post(
         "/auth/login",
         json={
-			"email": "admin@teste.com",
-			"password": "AdminTeste123!",
-		},
+            "email": "admin@teste.com",
+            "password": "AdminTeste123!",
+        },
     )
 
     assert login_response.status_code == 200
@@ -246,16 +249,6 @@ def test_protected_endpoint_with_inactive_user():
 
 
 def test_protected_endpoint_with_expired_token():
-    token = create_access_token(
-        {
-            "sub": "1",
-        }
-    )
-
-    # Cria um token explicitamente expirado.
-    from app.core.config import settings
-    import jwt
-
     expired_token = jwt.encode(
         {
             "sub": "1",
@@ -282,4 +275,31 @@ def test_protected_endpoint_with_expired_token():
     data = response.json()
 
     assert data["detail"] == "Token inválido ou expirado"
+
+
+def test_login_inactive_user():
+    db = next(app.dependency_overrides[get_db]())
+
+    try:
+        user = db.scalar(
+            select(User).where(
+                User.email == LOGIN_DATA["email"]
+            )
+        )
+
+        assert user is not None
+
+        user.is_active = False
+        db.commit()
+
+        response = client.post(
+            "/auth/login",
+            json=LOGIN_DATA,
+        )
+
+        assert response.status_code == 401
+        assert response.json()["detail"] == "Usuário inativo."
+
+    finally:
+        db.close()
 
