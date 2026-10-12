@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
-#!-*-coding:utf-8-*-
+# -*- coding: utf-8 -*-
 
 from fastapi.testclient import TestClient
 
 from main import app
+from app.models import Professional
 
 client = TestClient(app)
 
@@ -45,28 +46,27 @@ def get_admin_headers():
         "Authorization": f"Bearer {token}",
     }
 
-def get_professional_headers():
-	response = client.post(
-		"/auth/login",
-		json={
-			"email": "profissional@teste.com",
-			"password": "ProfissionalTeste123!",
-		},
-	)
 
-	assert response.status_code == 200
-	
-	token = response.json()["access_token"]
-	
-	return {
-		"Authorization": f"Bearer {token}",
-	}
+def get_professional_headers():
+    response = client.post(
+        "/auth/login",
+        json={
+            "email": "profissional@teste.com",
+            "password": "ProfissionalTeste123!",
+        },
+    )
+
+    assert response.status_code == 200
+
+    token = response.json()["access_token"]
+
+    return {
+        "Authorization": f"Bearer {token}",
+    }
 
 
 def test_list_working_hours():
-    response = client.get(
-        "/professionals/2/working-hours/"
-    )
+    response = client.get("/professionals/2/working-hours/")
 
     assert response.status_code == 200
 
@@ -85,9 +85,7 @@ def test_list_working_hours():
 
 
 def test_list_working_hours_professional_not_found():
-    response = client.get(
-        "/professionals/999999/working-hours/"
-    )
+    response = client.get("/professionals/999999/working-hours/")
 
     assert response.status_code == 404
 
@@ -117,10 +115,7 @@ def test_create_working_hour_rejects_overlap():
     )
 
     assert response.status_code == 409
-
-    data = response.json()
-
-    assert "sobrepõe" in data["detail"]
+    assert "sobrepõe" in response.json()["detail"]
 
 
 def test_create_working_hour_rejects_invalid_interval():
@@ -135,10 +130,7 @@ def test_create_working_hour_rejects_invalid_interval():
     )
 
     assert response.status_code == 409
-
-    data = response.json()
-
-    assert "horário inicial" in data["detail"].lower()
+    assert "horário inicial" in response.json()["detail"].lower()
 
 
 def test_create_working_hour_professional_not_found():
@@ -185,10 +177,7 @@ def test_create_and_delete_working_hour():
     )
 
     assert delete_response.status_code == 200
-
-    data = delete_response.json()
-
-    assert "excluído com sucesso" in data["message"]
+    assert "excluído com sucesso" in delete_response.json()["message"]
 
 
 def test_delete_working_hour_requires_authentication():
@@ -289,72 +278,71 @@ def test_update_working_hour_allows_admin():
 
     assert update_response.status_code == 200
 
+
 def test_delete_working_hour_allows_admin():
-	create_response = client.post(
-		"/professionals/2/working-hours/",
-		json={
-			"weekday": 6,
-			"start_time": "13:00",
-			"end_time": "14:00",
-		},
-		headers=get_admin_headers(),
-	)
+    create_response = client.post(
+        "/professionals/2/working-hours/",
+        json={
+            "weekday": 6,
+            "start_time": "13:00",
+            "end_time": "14:00",
+        },
+        headers=get_admin_headers(),
+    )
 
-	assert create_response.status_code == 200
-	
-	working_hour_id = create_response.json()["id"]
+    assert create_response.status_code == 200
 
-	delete_response = client.delete(
-		f"/professionals/2/working-hours/{working_hour_id}",
-		headers=get_admin_headers(),
-	)
+    working_hour_id = create_response.json()["id"]
 
-	assert delete_response.status_code == 200
-	
-	data = delete_response.json()
+    delete_response = client.delete(
+        f"/professionals/2/working-hours/{working_hour_id}",
+        headers=get_admin_headers(),
+    )
 
-	assert "excluído com sucesso" in data["message"]
-	
+    assert delete_response.status_code == 200
+    assert "excluído com sucesso" in delete_response.json()["message"]
+
 
 def test_create_working_hour_allows_professional():
-	response = client.post(
-		"/professionals/2/working-hours",
-		json={
-			"weekday": 6,
-			"start_time": "15:00",
-			"end_time": "16:00",
-		},
-		headers=get_professional_headers(),
-	)
+    response = client.post(
+        "/professionals/2/working-hours",
+        json={
+            "weekday": 6,
+            "start_time": "15:00",
+            "end_time": "16:00",
+        },
+        headers=get_professional_headers(),
+    )
 
-	assert response.status_code == 200
+    assert response.status_code == 200
+
 
 def test_update_working_hour_allows_professional():
-	create_response = client.post(
-		"/professionals/2/working-hours",	
-		json={
-			"weekday": 6,
-			"start_time": "15:00",
-			"end_time": "16:00",
-		},
-		headers=get_professional_headers()
-	)
+    create_response = client.post(
+        "/professionals/2/working-hours",
+        json={
+            "weekday": 6,
+            "start_time": "15:00",
+            "end_time": "16:00",
+        },
+        headers=get_professional_headers(),
+    )
 
-	assert create_response.status_code == 200
-	
-	working_hour_id = create_response.json()["id"]
+    assert create_response.status_code == 200
 
-	update_response = client.put(
-		f"/professionals/2/working-hours/{working_hour_id}",
-		json={
-			"weekday": 6,
-			"start_time": "15:00",
-			"end_time": "17:00",
-		},
-		headers=get_professional_headers(),
-	)
+    working_hour_id = create_response.json()["id"]
 
-	assert update_response.status_code == 200
+    update_response = client.put(
+        f"/professionals/2/working-hours/{working_hour_id}",
+        json={
+            "weekday": 6,
+            "start_time": "15:00",
+            "end_time": "17:00",
+        },
+        headers=get_professional_headers(),
+    )
+
+    assert update_response.status_code == 200
 
 
 def test_delete_working_hour_allows_professional():
@@ -378,7 +366,38 @@ def test_delete_working_hour_allows_professional():
     )
 
     assert delete_response.status_code == 200
+    assert "excluído com sucesso" in delete_response.json()["message"]
 
-    data = delete_response.json()
 
-    assert "excluído com sucesso" in data["message"]
+def test_professional_cannot_create_working_hours_for_another_professional():
+    from app.database import get_db
+    from app.models import Professional
+
+    db_generator = app.dependency_overrides[get_db]()
+    db = next(db_generator)
+
+    try:
+        other_professional = (
+            db.query(Professional)
+            .filter(
+                Professional.email == "maria.oliveira@teste.com"
+            )
+            .first()
+        )
+
+        assert other_professional is not None
+
+        response = client.post(
+            f"/professionals/{other_professional.id}/working-hours/",
+            json={
+                "weekday": 6,
+                "start_time": "08:00",
+                "end_time": "09:00",
+            },
+            headers=get_professional_headers(),
+        )
+
+        assert response.status_code == 403
+
+    finally:
+        db_generator.close()

@@ -1,13 +1,19 @@
 #!/usr/bin/env python3
-#!-*-coding:utf-8-*-
+# -*- coding: utf-8 -*-
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
+from app.core.auth import require_role
 from app.database import get_db
-from app.models import Service
-from app.schemas import ServiceCreate, ServiceUpdate, ServiceResponse, MessageResponse
+from app.models import Service, User
+from app.schemas import (
+    MessageResponse,
+    ServiceCreate,
+    ServiceResponse,
+    ServiceUpdate,
+)
 
 router = APIRouter(
     prefix="/services",
@@ -16,9 +22,10 @@ router = APIRouter(
 
 
 @router.get("/", response_model=list[ServiceResponse])
-def list_services(db: Session = Depends(get_db)):
+def list_services(
+    db: Session = Depends(get_db),
+):
     services = db.query(Service).all()
-
     return services
 
 
@@ -26,6 +33,7 @@ def list_services(db: Session = Depends(get_db)):
 def create_service(
     service_data: ServiceCreate,
     db: Session = Depends(get_db),
+    current_user: User = Depends(require_role("admin")),
 ):
     service = Service(
         name=service_data.name,
@@ -46,17 +54,21 @@ def create_service(
         )
 
     db.refresh(service)
-
     return service
+
 
 @router.get("/{service_id}", response_model=ServiceResponse)
 def get_service(
     service_id: int,
     db: Session = Depends(get_db),
 ):
-    service = db.query(Service).filter(Service.id == service_id).first()
+    service = (
+        db.query(Service)
+        .filter(Service.id == service_id)
+        .first()
+    )
 
-    if not service:
+    if service is None:
         raise HTTPException(
             status_code=404,
             detail="Serviço não encontrado",
@@ -70,10 +82,15 @@ def update_service(
     service_id: int,
     service_data: ServiceUpdate,
     db: Session = Depends(get_db),
+    current_user: User = Depends(require_role("admin")),
 ):
-    service = db.query(Service).filter(Service.id == service_id).first()
+    service = (
+        db.query(Service)
+        .filter(Service.id == service_id)
+        .first()
+    )
 
-    if not service:
+    if service is None:
         raise HTTPException(
             status_code=404,
             detail="Serviço não encontrado",
@@ -95,10 +112,15 @@ def update_service(
 def delete_service(
     service_id: int,
     db: Session = Depends(get_db),
+    current_user: User = Depends(require_role("admin")),
 ):
-    service = db.query(Service).filter(Service.id == service_id).first()
+    service = (
+        db.query(Service)
+        .filter(Service.id == service_id)
+        .first()
+    )
 
-    if not service:
+    if service is None:
         raise HTTPException(
             status_code=404,
             detail="Serviço não encontrado",
@@ -110,4 +132,3 @@ def delete_service(
     return {
         "message": "Serviço excluído com sucesso."
     }
-

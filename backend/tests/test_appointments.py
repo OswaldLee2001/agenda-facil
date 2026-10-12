@@ -22,20 +22,25 @@ def post_with_future_clock(client, *args, **kwargs):
     with patch("app.routers.appointments.datetime") as mock_datetime:
         mock_datetime.now.return_value = fixed_now
         mock_datetime.combine.side_effect = real_datetime.combine
-
         return client.post(*args, **kwargs)
+
+
+def put_with_future_clock(client, *args, **kwargs):
+    fixed_now = real_datetime(2026, 10, 11, 12, 0, 0)
+
+    with patch("app.routers.appointments.datetime") as mock_datetime:
+        mock_datetime.now.return_value = fixed_now
+        mock_datetime.combine.side_effect = real_datetime.combine
+        return client.put(*args, **kwargs)
 
 
 def get_headers_for(email, password):
     response = client.post(
         "/auth/login",
-        json={
-            "email": email,
-            "password": password,
-        },
+        json={"email": email, "password": password},
     )
 
-    assert response.status_code == 200
+    assert response.status_code == 200, response.json()
 
     return {
         "Authorization": f"Bearer {response.json()['access_token']}",
@@ -58,12 +63,10 @@ def test_list_appointment():
     assert response.status_code == 200
 
     appointments = response.json()
-
     assert isinstance(appointments, list)
 
     if appointments:
         appointment = appointments[0]
-
         assert "id" in appointment
         assert "professional_id" in appointment
         assert "service_id" in appointment
@@ -76,13 +79,11 @@ def test_list_appointment():
 
 def test_list_appointment_requires_authentication():
     response = client.get("/appointments/")
-
     assert response.status_code == 401
 
 
 def test_get_appointment_requires_authentication():
     response = client.get("/appointments/1")
-
     assert response.status_code == 401
 
 
@@ -105,12 +106,12 @@ def test_update_appointment_requires_authentication():
 
 def test_delete_appointment_requires_authentication():
     response = client.delete("/appointments/1")
-
     assert response.status_code == 401
 
 
 def test_create_appointment_outside_working_hours():
-    response = client.post(
+    response = post_with_future_clock(
+        client,
         "/appointments/",
         json={
             "professional_id": 2,
@@ -124,14 +125,12 @@ def test_create_appointment_outside_working_hours():
     )
 
     assert response.status_code == 409
-
-    data = response.json()
-
-    assert "horário de trabalho" in data["detail"]
+    assert "horário de trabalho" in response.json()["detail"]
 
 
 def test_create_appointment_rejects_conflict():
-    response = client.post(
+    response = post_with_future_clock(
+        client,
         "/appointments/",
         json={
             "professional_id": 2,
@@ -145,10 +144,7 @@ def test_create_appointment_rejects_conflict():
     )
 
     assert response.status_code == 409
-
-    data = response.json()
-
-    assert "agendamento nesse intervalo" in data["detail"].lower()
+    assert "agendamento nesse intervalo" in response.json()["detail"].lower()
 
 
 def test_create_appointment_rejects_blank_client_name():
@@ -177,9 +173,7 @@ def test_get_appointment_authenticated():
     )
 
     assert list_response.status_code == 200
-
     appointments = list_response.json()
-
     assert appointments
 
     appointment_id = appointments[0]["id"]
@@ -190,10 +184,7 @@ def test_get_appointment_authenticated():
     )
 
     assert response.status_code == 200
-
-    appointment = response.json()
-
-    assert appointment["id"] == appointment_id
+    assert response.json()["id"] == appointment_id
 
 
 def test_client_cannot_get_another_clients_appointment():
@@ -229,45 +220,25 @@ def test_client_cannot_get_another_clients_appointment():
 
 
 def test_professional_cannot_get_another_professionals_appointment():
-    from app.core.security import hash_password
     from app.database import get_db
-    from app.models import Appointments, Professional, User
+    from app.models import Appointments, User
 
     db = next(app.dependency_overrides[get_db]())
 
     appointment = db.query(Appointments).first()
     assert appointment is not None
 
-    password = "ProfissionalTeste123!"
+    other_professional_user = db.query(User).filter(
+        User.email == "outro.profissional@teste.com"
+    ).first()
 
-    other_professional_user = User(
-        name="Outro Profissional",
-        email="outro.profissional@teste.com",
-        hashed_password=hash_password(password),
-        is_active=True,
-        role="professional",
-    )
-
-    db.add(other_professional_user)
-    db.commit()
-    db.refresh(other_professional_user)
-
-    other_professional = Professional(
-        name="Outro Profissional",
-        email="outro.profissional@teste.com",
-        phone="61988887777",
-        available=True,
-        user_id=other_professional_user.id,
-    )
-
-    db.add(other_professional)
-    db.commit()
+    assert other_professional_user is not None
 
     response = client.get(
         f"/appointments/{appointment.id}",
         headers=get_headers_for(
             "outro.profissional@teste.com",
-            password,
+            "OutroProfissional123!",
         ),
     )
 
@@ -275,45 +246,25 @@ def test_professional_cannot_get_another_professionals_appointment():
 
 
 def test_professional_cannot_update_another_professionals_appointment():
-    from app.core.security import hash_password
     from app.database import get_db
-    from app.models import Appointments, Professional, User
+    from app.models import Appointments, User
 
     db = next(app.dependency_overrides[get_db]())
 
     appointment = db.query(Appointments).first()
     assert appointment is not None
 
-    password = "ProfissionalTeste123!"
+    other_professional_user = db.query(User).filter(
+        User.email == "outro.profissional@teste.com"
+    ).first()
 
-    other_professional_user = User(
-        name="Outro Profissional",
-        email="outro.profissional@teste.com",
-        hashed_password=hash_password(password),
-        is_active=True,
-        role="professional",
-    )
-
-    db.add(other_professional_user)
-    db.commit()
-    db.refresh(other_professional_user)
-
-    other_professional = Professional(
-        name="Outro Profissional",
-        email="outro.profissional@teste.com",
-        phone="61988887777",
-        available=True,
-        user_id=other_professional_user.id,
-    )
-
-    db.add(other_professional)
-    db.commit()
+    assert other_professional_user is not None
 
     response = client.put(
         f"/appointments/{appointment.id}",
         headers=get_headers_for(
             "outro.profissional@teste.com",
-            password,
+            "OutroProfissional123!",
         ),
         json={
             "professional_id": appointment.professional_id,
@@ -338,9 +289,7 @@ def test_update_appointment_client_cannot_change_reservation_details():
     )
 
     assert list_response.status_code == 200
-
     appointments = list_response.json()
-
     assert appointments
 
     appointment_id = appointments[0]["id"]
@@ -360,10 +309,8 @@ def test_update_appointment_client_cannot_change_reservation_details():
     )
 
     assert response.status_code == 403
-
-    assert (
-        "dados da reserva não podem ser modificados"
-        in response.json()["detail"]
+    assert "dados da reserva não podem ser modificados" in (
+        response.json()["detail"]
     )
 
 
@@ -408,13 +355,13 @@ def test_admin_can_update_appointment():
     )
 
     assert list_response.status_code == 200
-
     appointments = list_response.json()
     assert appointments
 
     appointment = appointments[0]
 
-    response = client.put(
+    response = put_with_future_clock(
+        client,
         f"/appointments/{appointment['id']}",
         headers=headers,
         json={
@@ -428,7 +375,7 @@ def test_admin_can_update_appointment():
         },
     )
 
-    assert response.status_code == 200
+    assert response.status_code == 200, response.json()
     assert response.json()["status"] == "confirmed"
 
 
@@ -444,7 +391,6 @@ def test_admin_can_delete_appointment():
     )
 
     assert list_response.status_code == 200
-
     appointments = list_response.json()
     assert appointments
 
@@ -456,9 +402,7 @@ def test_admin_can_delete_appointment():
     )
 
     assert response.status_code == 200
-    assert response.json()["message"] == (
-        "Agendamento excluído com sucesso."
-    )
+    assert response.json()["message"] == "Agendamento excluído com sucesso."
 
     get_response = client.get(
         f"/appointments/{appointment_id}",
@@ -477,7 +421,6 @@ def test_client_can_cancel_own_appointment():
     )
 
     assert list_response.status_code == 200
-
     appointments = list_response.json()
     assert appointments
 
@@ -510,7 +453,6 @@ def test_client_cannot_confirm_own_appointment():
     )
 
     assert list_response.status_code == 200
-
     appointments = list_response.json()
     assert appointments
 
@@ -546,7 +488,6 @@ def test_admin_cannot_complete_scheduled_appointment_directly():
     )
 
     assert list_response.status_code == 200
-
     appointments = list_response.json()
     assert appointments
 
@@ -582,13 +523,13 @@ def test_admin_cannot_reopen_cancelled_appointment():
     )
 
     assert list_response.status_code == 200
-
     appointments = list_response.json()
     assert appointments
 
     appointment = appointments[0]
 
-    cancel_response = client.put(
+    cancel_response = put_with_future_clock(
+        client,
         f"/appointments/{appointment['id']}",
         headers=headers,
         json={
@@ -602,7 +543,7 @@ def test_admin_cannot_reopen_cancelled_appointment():
         },
     )
 
-    assert cancel_response.status_code == 200
+    assert cancel_response.status_code == 200, cancel_response.json()
     assert cancel_response.json()["status"] == "cancelled"
 
     reopen_response = client.put(
@@ -712,7 +653,7 @@ def test_cancelled_appointment_does_not_block_time():
         headers=get_auth_headers(),
     )
 
-    assert response.status_code == 200
+    assert response.status_code == 200, response.json()
 
 
 def test_schedule_conflict_ignores_appointment_with_missing_service():
@@ -979,7 +920,7 @@ def test_create_appointment_rejects_unavailable_service():
             "professional_id": 2,
             "service_id": 1,
             "client_name": "Teste Serviço Indisponível",
-            "client_phone": "61999999999",
+            "client_phone": "619999999999",
             "appointment_date": "2026-10-12",
             "appointment_time": "10:00",
         },
@@ -1003,7 +944,6 @@ def test_update_appointment_returns_500_when_commit_fails():
     db = next(app.dependency_overrides[get_db]())
 
     appointment = db.query(Appointments).first()
-
     assert appointment is not None
 
     appointment_id = appointment.id
@@ -1079,7 +1019,6 @@ def test_professional_can_list_own_appointments():
     assert response.status_code == 200
 
     appointments = response.json()
-
     assert len(appointments) > 0
     assert all(
         appointment["professional_id"] == 2
