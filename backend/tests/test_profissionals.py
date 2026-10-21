@@ -1,9 +1,13 @@
 #!/usr/bin/env python3
 #!-*-coding:utf-8-*-
 
+from datetime import date, time
+
 from fastapi.testclient import TestClient
 
 from main import app
+from app.models import Appointments
+from tests.conftest import TestSessionLocal
 
 client = TestClient(app)
 
@@ -288,3 +292,96 @@ def test_delete_profissional_with_appointments_returns_conflict():
 	professional_response = client.get("/professionals/2")
 
 	assert professional_response.status_code == 200
+
+def test_available_slots_return_slots_for_working_day():
+	response = client.get(
+		"/professionals/2/available-slots/",
+		params={
+			"appointment_date": "2026-10-26",
+			"service_id": 1
+		},
+	)
+
+	assert response.status_code == 200
+
+	slots = response.json()
+
+	assert isinstance(response.json(), list)
+	assert len(slots) > 0
+	assert slots[0] == "09:00"
+	assert slots[-1] == "17:30"
+
+def test_available_slots_rejects_missing_professional():
+	response = client.get(
+		"/professionals/999999/available-slots/",
+		params={
+			"appointment_date": "2026-10-26",
+			"service_id": 1,
+		},
+	)
+
+	assert response.status_code == 404
+	assert "profissional" in response.json()["detail"].lower()
+
+def test_available_slots_reject_missing_service():
+	response = client.get(
+		"/professionals/2/available-slots/",
+		params={
+			"appointment_date": "2026-10-26",
+			"service_id": 999999,
+		},
+	)
+
+	assert response.status_code == 404
+	assert "serviço" in response.json()["detail"].lower()
+
+def test_available_slots_excludes_existing_appointment():
+	response = client.get(
+		"/professionals/2/available-slots/",
+		params={
+			"appointment_date": "2026-10-12",
+			"service_id": 1,
+		},
+	)
+
+	assert response.status_code == 200
+
+	slots = response.json()
+
+	assert "17:00" not in slots
+	assert "17:30" not in slots
+
+def test_available_slots_exclude_newly_created_appointment():
+	db = TestSessionLocal()
+
+	try:
+		appointment = Appointments(
+			professional_id=2,
+			service_id=1,
+			client_name="Cliente com agendamento",
+			client_phone="61988888888",
+			appointment_date=date(2026, 10, 26),
+			appointment_time=time(10, 0),
+			status="scheduled",
+		)
+		db.add(appointment)
+		db.commit()
+	finally:
+		db.close()
+
+	response = client.get(
+		"/professionals/2/available-slots/",
+		params={
+			"appointment_date": "2026-10-26",
+			"service_id": 1,
+		},
+	)
+
+	assert response.status_code == 200
+
+	slots = response.json()
+
+	assert "09:00" in slots
+	assert "10:00" not in slots
+	assert "10:30" not in slots
+	assert "11:00" in slots

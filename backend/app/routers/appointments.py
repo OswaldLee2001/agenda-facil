@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-#!-*-coding:utf-8-*-
+# -*- coding: utf-8 -*-
 
 from datetime import datetime, timedelta
 
@@ -13,7 +13,7 @@ from app.models import (
     Appointments,
     Professional,
     ProfessionalWorkingHour,
-	User,
+    User,
     Service,
 )
 from app.schemas import (
@@ -234,8 +234,10 @@ def validate_status_transition(
         )
 
 
-
-def get_linked_professional(db: Session, current_user: User) -> Professional:
+def get_linked_professional(
+    db: Session,
+    current_user: User,
+) -> Professional:
     professional = (
         db.query(Professional)
         .filter(Professional.user_id == current_user.id)
@@ -290,7 +292,9 @@ def list_appointments(
     query = db.query(Appointments)
 
     if current_user.role == "client":
-        query = query.filter(Appointments.client_user_id == current_user.id)
+        query = query.filter(
+            Appointments.client_user_id == current_user.id
+        )
     elif current_user.role == "professional":
         professional = get_linked_professional(db, current_user)
         query = query.filter(
@@ -331,6 +335,7 @@ def create_appointment(
     professional = (
         db.query(Professional)
         .filter(Professional.id == appointment_data.professional_id)
+        .with_for_update()
         .first()
     )
 
@@ -515,6 +520,7 @@ def update_appointment(
     professional = (
         db.query(Professional)
         .filter(Professional.id == appointment_data.professional_id)
+        .with_for_update()
         .first()
     )
 

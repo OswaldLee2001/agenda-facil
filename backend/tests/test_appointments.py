@@ -1025,3 +1025,83 @@ def test_professional_can_list_own_appointments():
         for appointment in appointments
     )
 
+
+def test_concurrent_bookings_reject_duplicate_slot():
+    from concurrent.futures import ThreadPoolExecutor
+    from threading import Barrier
+
+    from conftest import TestSessionLocal
+    from app.database import get_db
+
+    headers = get_auth_headers()
+    barrier = Barrier(2)
+
+    def get_independent_db():
+        db = TestSessionLocal()
+        try:
+            yield db
+        finally:
+            db.close()
+
+    had_override = get_db in app.dependency_overrides
+    previous_override = app.dependency_overrides.get(get_db)
+
+    app.dependency_overrides[get_db] = get_independent_db
+
+    def submit_booking(client_name):
+        barrier.wait(timeout=10)
+
+        return client.post(
+            "/appointments/",
+            json={
+                "professional_id": 2,
+                "service_id": 1,
+                "client_name": client_name,
+                "client_phone": "61999999999",
+                "appointment_date": "2026-10-12",
+                "appointment_time": "10:00",
+            },
+            headers=headers,
+        )
+
+    try:
+        with patch(
+            "app.routers.appointments.datetime"
+        ) as mock_datetime:
+            mock_datetime.now.return_value = real_datetime(
+                2026, 10, 11, 12, 0, 0
+            )
+            mock_datetime.combine.side_effect = real_datetime.combine
+
+            with ThreadPoolExecutor(max_workers=2) as executor:
+                futures = [
+                    executor.submit(
+                        submit_booking,
+                        "Cliente Concorrente A",
+                    ),
+                    executor.submit(
+                        submit_booking,
+                        "Cliente Concorrente B",
+                    ),
+                ]
+
+                responses = [
+                    future.result(timeout=30)
+                    for future in futures
+                ]
+
+        status_codes = sorted(
+            response.status_code for response in responses
+        )
+
+        assert status_codes == [200, 409], [
+            (response.status_code, response.json())
+            for response in responses
+        ]
+
+    finally:
+        if had_override:
+            app.dependency_overrides[get_db] = previous_override
+        else:
+            app.dependency_overrides.pop(get_db, None)
+

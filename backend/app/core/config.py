@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-#!-*-coding:utf-8-*-
-
+# -*- coding: utf-8 -*-
 
 from typing import Literal
 
@@ -15,7 +14,10 @@ class Settings(BaseSettings):
     access_token_expire_minutes: int = Field(default=30, gt=0)
     debug: bool = False
     cors_origins: str = (
-        "http://localhost:3000,http://127.0.0.1:3000"
+        "http://localhost:3000,"
+        "http://127.0.0.1:3000,"
+        "http://localhost:5173,"
+        "http://127.0.0.1:5173"
     )
 
     @field_validator("secret_key")
