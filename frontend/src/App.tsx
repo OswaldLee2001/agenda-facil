@@ -579,6 +579,59 @@ function App() {
 	setAppointmentDate(date)
   }
 
+  async function handleCancelAppointment(appointmentId: number) {
+    const appointment = appointments.find(
+      (item) => item.id === appointmentId,
+    )
+
+    if (!appointment || !authToken) {
+      return
+    }
+
+    const confirmed = window.confirm(
+      'Tem certeza de que deseja cancelar este agendamento?',
+    )
+
+    if (!confirmed) {
+      return
+    }
+
+    try {
+      const response = await fetch(
+        `${API_URL}/appointments/${appointmentId}`,
+        {
+          method: 'PUT',
+          headers: {
+            Authorization: `Bearer ${authToken}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            professional_id: appointment.professional_id,
+            service_id: appointment.service_id,
+            client_name: appointment.client_name,
+            client_phone: appointment.client_phone,
+            appointment_date: appointment.appointment_date,
+            appointment_time: appointment.appointment_time,
+            status: 'cancelled',
+          }),
+        },
+      )
+
+      if (!response.ok) {
+        throw new Error('Não foi possível cancelar o agendamento.')
+      }
+
+      setAppointmentsRefreshKey((currentKey) => currentKey + 1)
+    } catch (err) {
+      console.error('Erro ao cancelar agendamento:', err)
+      window.alert(
+        err instanceof Error
+          ? err.message
+          : 'Ocorreu um erro inesperado ao cancelar o agendamento.',
+      )
+    }
+  }
+
   // Valida a data escolhida.
   if (currentPage === 'client' && authToken) {
 	return (
@@ -586,6 +639,7 @@ function App() {
 			appointments={appointments}
 			appointmentsLoading={appointmentsLoading}
 			appointmentsError={appointmentsError}
+			onCancelAppointment={handleCancelAppointment}
 			onGoHome={() => setCurrentPage('home')}
 		/>
 	)

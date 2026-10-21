@@ -2,6 +2,7 @@ type Appointment = {
   id: number
   appointment_date: string
   appointment_time: string
+  status: string
   professional: {
     name: string
   }
@@ -15,12 +16,14 @@ type ClientPageProps = {
   appointmentsLoading: boolean
   appointmentsError: string | null
   onGoHome: () => void
+  onCancelAppointment: (appointmentId: number) => void
 }
 
 function ClientPage({
   appointments,
   appointmentsLoading,
   appointmentsError,
+  onCancelAppointment,
   onGoHome,
 }: ClientPageProps) {
   return (
@@ -102,6 +105,31 @@ function ClientPage({
                     <strong>Horário:</strong>{' '}
                     {appointment.appointment_time.slice(0, 5)}
                   </p>
+
+                  <p>
+                    <strong>Status:</strong>{' '}
+                    {appointment.status === 'scheduled'
+                      ? 'Agendado'
+                      : appointment.status === 'confirmed'
+                        ? 'Confirmado'
+                        : appointment.status === 'completed'
+                          ? 'Concluído'
+                          : appointment.status === 'cancelled'
+                            ? 'Cancelado'
+                            : appointment.status}
+                  </p>
+
+                  {(appointment.status === 'scheduled' ||
+                    appointment.status === 'confirmed') && (
+                    <button
+                      type="button"
+                      onClick={() =>
+                        void onCancelAppointment(appointment.id)
+                      }
+                    >
+                      Cancelar agendamento
+                    </button>
+                  )}
                 </article>
               ))}
             </div>
