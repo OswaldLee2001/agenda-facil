@@ -78,11 +78,14 @@ function ClientPage({
           {appointment.appointment_time.slice(0, 5)}
         </p>
 
-        <p>
-          <strong>Status:</strong>{' '}
-          {getStatusLabel(appointment.status)}
+        <p className="appointment-status-row">
+          <strong>Status:</strong>
+          <span
+            className={`appointment-status appointment-status--${appointment.status}`}
+          >
+            {getStatusLabel(appointment.status)}
+          </span>
         </p>
-
         {showCancelButton && (
           <button
             type="button"
