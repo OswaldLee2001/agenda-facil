@@ -26,17 +26,36 @@ function ClientPage({
   onCancelAppointment,
   onGoHome,
 }: ClientPageProps) {
-  const activeAppointments = appointments.filter(
-    (appointment) =>
-      appointment.status === 'scheduled' ||
-      appointment.status === 'confirmed',
-  )
+  const activeAppointments = appointments
+    .filter(
+      (appointment) =>
+        appointment.status === 'scheduled' ||
+        appointment.status === 'confirmed',
+    )
+    .sort((a, b) => {
+      const dateA =
+        `${a.appointment_date}T${a.appointment_time}`
+      const dateB =
+        `${b.appointment_date}T${b.appointment_time}`
 
-  const pastAppointments = appointments.filter(
-    (appointment) =>
-      appointment.status === 'cancelled' ||
-      appointment.status === 'completed',
-  )
+      return dateA.localeCompare(dateB)
+    })
+
+  const pastAppointments = appointments
+    .filter(
+      (appointment) =>
+        appointment.status === 'cancelled' ||
+        appointment.status === 'completed',
+    )
+    .sort((a, b) => {
+      const dateA =
+        `${a.appointment_date}T${a.appointment_time}`
+      const dateB =
+        `${b.appointment_date}T${b.appointment_time}`
+
+      return dateB.localeCompare(dateA)
+    })
+
 
   function getStatusLabel(status: string) {
     switch (status) {
