@@ -26,6 +26,77 @@ function ClientPage({
   onCancelAppointment,
   onGoHome,
 }: ClientPageProps) {
+  const activeAppointments = appointments.filter(
+    (appointment) =>
+      appointment.status === 'scheduled' ||
+      appointment.status === 'confirmed',
+  )
+
+  const pastAppointments = appointments.filter(
+    (appointment) =>
+      appointment.status === 'cancelled' ||
+      appointment.status === 'completed',
+  )
+
+  function getStatusLabel(status: string) {
+    switch (status) {
+      case 'scheduled':
+        return 'Agendado'
+      case 'confirmed':
+        return 'Confirmado'
+      case 'completed':
+        return 'Concluído'
+      case 'cancelled':
+        return 'Cancelado'
+      default:
+        return status
+    }
+  }
+
+  function renderAppointmentCard(
+    appointment: Appointment,
+    showCancelButton: boolean,
+  ) {
+    return (
+      <article className="service-card" key={appointment.id}>
+        <h3>{appointment.service.name}</h3>
+
+        <p>
+          <strong>Profissional:</strong>{' '}
+          {appointment.professional.name}
+        </p>
+
+        <p>
+          <strong>Data:</strong>{' '}
+          {new Date(
+            `${appointment.appointment_date}T12:00:00`,
+          ).toLocaleDateString('pt-BR')}
+        </p>
+
+        <p>
+          <strong>Horário:</strong>{' '}
+          {appointment.appointment_time.slice(0, 5)}
+        </p>
+
+        <p>
+          <strong>Status:</strong>{' '}
+          {getStatusLabel(appointment.status)}
+        </p>
+
+        {showCancelButton && (
+          <button
+            type="button"
+            onClick={() =>
+              void onCancelAppointment(appointment.id)
+            }
+          >
+            Cancelar agendamento
+          </button>
+        )}
+      </article>
+    )
+  }
+
   return (
     <main className="booking-page">
       <header className="site-header">
@@ -61,7 +132,7 @@ function ClientPage({
         <div className="section-heading">
           <span className="eyebrow">SUA CONTA</span>
           <h2>Meus agendamentos</h2>
-          <p>Consulte os horários que você reservou.</p>
+          <p>Consulte seus próximos horários e seu histórico.</p>
         </div>
 
         {appointmentsLoading && (
@@ -72,68 +143,45 @@ function ClientPage({
           <p role="alert">{appointmentsError}</p>
         )}
 
-        {!appointmentsLoading &&
-          !appointmentsError &&
-          appointments.length === 0 && (
-            <p>Você ainda não possui agendamentos.</p>
-          )}
+        {!appointmentsLoading && !appointmentsError && (
+          <>
+            <section aria-labelledby="active-appointments-title">
+              <div className="section-heading">
+                <h3 id="active-appointments-title">
+                  Agendamentos ativos
+                </h3>
+              </div>
 
-        {!appointmentsLoading &&
-          !appointmentsError &&
-          appointments.length > 0 && (
-            <div className="services-grid">
-              {appointments.map((appointment) => (
-                <article
-                  className="service-card"
-                  key={appointment.id}
-                >
-                  <h3>{appointment.service.name}</h3>
-
-                  <p>
-                    <strong>Profissional:</strong>{' '}
-                    {appointment.professional.name}
-                  </p>
-
-                  <p>
-                    <strong>Data:</strong>{' '}
-                    {new Date(
-                      `${appointment.appointment_date}T12:00:00`,
-                    ).toLocaleDateString('pt-BR')}
-                  </p>
-
-                  <p>
-                    <strong>Horário:</strong>{' '}
-                    {appointment.appointment_time.slice(0, 5)}
-                  </p>
-
-                  <p>
-                    <strong>Status:</strong>{' '}
-                    {appointment.status === 'scheduled'
-                      ? 'Agendado'
-                      : appointment.status === 'confirmed'
-                        ? 'Confirmado'
-                        : appointment.status === 'completed'
-                          ? 'Concluído'
-                          : appointment.status === 'cancelled'
-                            ? 'Cancelado'
-                            : appointment.status}
-                  </p>
-
-                  {(appointment.status === 'scheduled' ||
-                    appointment.status === 'confirmed') && (
-                    <button
-                      type="button"
-                      onClick={() =>
-                        void onCancelAppointment(appointment.id)
-                      }
-                    >
-                      Cancelar agendamento
-                    </button>
+              {activeAppointments.length === 0 ? (
+                <p>Você não possui agendamentos ativos.</p>
+              ) : (
+                <div className="services-grid">
+                  {activeAppointments.map((appointment) =>
+                    renderAppointmentCard(appointment, true),
                   )}
-                </article>
-              ))}
-            </div>
-          )}
+                </div>
+              )}
+            </section>
+
+            <section aria-labelledby="appointment-history-title">
+              <div className="section-heading">
+                <h3 id="appointment-history-title">
+                  Histórico de agendamentos
+                </h3>
+              </div>
+
+              {pastAppointments.length === 0 ? (
+                <p>Você ainda não possui registros no histórico.</p>
+              ) : (
+                <div className="services-grid">
+                  {pastAppointments.map((appointment) =>
+                    renderAppointmentCard(appointment, false),
+                  )}
+                </div>
+              )}
+            </section>
+          </>
+        )}
       </section>
 
       <footer className="site-footer">
