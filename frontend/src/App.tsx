@@ -588,14 +588,6 @@ function App() {
       return
     }
 
-    const confirmed = window.confirm(
-      'Tem certeza de que deseja cancelar este agendamento?',
-    )
-
-    if (!confirmed) {
-      return
-    }
-
     try {
       const response = await fetch(
         `${API_URL}/appointments/${appointmentId}`,

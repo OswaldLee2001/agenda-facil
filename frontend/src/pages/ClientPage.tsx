@@ -1,3 +1,5 @@
+import { useState } from 'react'
+
 type Appointment = {
   id: number
   appointment_date: string
@@ -26,6 +28,9 @@ function ClientPage({
   onCancelAppointment,
   onGoHome,
 }: ClientPageProps) {
+  const [appointmentToCancel, setAppointmentToCancel] =
+    useState<number | null>(null)
+
   const activeAppointments = appointments
     .filter(
       (appointment) =>
@@ -55,7 +60,6 @@ function ClientPage({
 
       return dateB.localeCompare(dateA)
     })
-
 
   function getStatusLabel(status: string) {
     switch (status) {
@@ -105,15 +109,43 @@ function ClientPage({
             {getStatusLabel(appointment.status)}
           </span>
         </p>
+
         {showCancelButton && (
-          <button
-            type="button"
-            onClick={() =>
-              void onCancelAppointment(appointment.id)
-            }
-          >
-            Cancelar agendamento
-          </button>
+          <>
+            {appointmentToCancel === appointment.id ? (
+              <div className="appointment-cancel-confirmation">
+                <p>
+                  Tem certeza de que deseja cancelar este agendamento?
+                </p>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAppointmentToCancel(null)
+                    void onCancelAppointment(appointment.id)
+                  }}
+                >
+                  Confirmar cancelamento
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setAppointmentToCancel(null)}
+                >
+                  Manter agendamento
+                </button>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() =>
+                  setAppointmentToCancel(appointment.id)
+                }
+              >
+                Cancelar agendamento
+              </button>
+            )}
+          </>
         )}
       </article>
     )
