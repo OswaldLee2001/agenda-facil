@@ -2,11 +2,8 @@
 #!-*-coding:utf-8-*-
 
 from fastapi.testclient import TestClient
-from sqlalchemy import select
 
 from main import app
-from app.database import get_db
-from app.models import User
 
 client = TestClient(app)
 
@@ -26,6 +23,8 @@ def test_create_user_success():
 
 	assert data["name"] == "Novo Usuário"
 	assert data["email"] == "novo.usuario@teste.com"
+	assert data["role"] == "client"
+	assert data["is_active"] is True
 	assert "hashed_password" not in data
 	assert "password" not in data
 
@@ -60,6 +59,31 @@ def test_create_user_missing_password():
 		json={
 			"name": "Sem senha",
 			"email": "sem.senha@teste.com",
+		},
+	)
+
+	assert response.status_code == 422
+
+def test_create_user_blank_name():
+	response = client.post(
+		"/users/",
+		json={
+			"name": "  ",
+			"email": "nome.vazio@teste.com",
+			"password": "SenhaNova123!",
+		},
+	)
+
+	assert response.status_code == 422
+
+
+def test_create_user_short_password():
+	response = client.post(
+		"/users/",
+		json={
+			"name": "Senha Curta",
+			"email": "senha.curta@teste.com",
+			"password": "abc123",
 		},
 	)
 

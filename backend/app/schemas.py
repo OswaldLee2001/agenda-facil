@@ -243,10 +243,17 @@ class ProfessionalWorkingHourResponse(BaseModel):
 	model_config = {"from_attributes": True}
 
 class UserCreate(BaseModel):
-	name: str
+	name: str = Field(min_length=1, max_length=100)
 	email: EmailStr
-	password: str
+	password: str = Field(min_length=8, max_length=128)
 
+	@field_validator("name")
+	@classmethod
+	def validate_name(cls, value: str) -> str:
+		value = value.strip()
+		if not value:
+			raise ValueError("O nome não pode ficar vazio.")
+		return value
 
 class UserLogin(BaseModel):
 	email: EmailStr
