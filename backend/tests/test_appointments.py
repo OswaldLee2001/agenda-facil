@@ -444,6 +444,28 @@ def test_client_can_cancel_own_appointment():
     assert response.json()["status"] == "cancelled"
 
 
+def test_client_can_cancel_appointment_with_status_only():
+	headers = get_auth_headers()
+
+	list_response = client.get(
+		"/appointments/",
+		headers=headers,
+	)
+
+	assert list_response.status_code == 200
+	appointments = list_response.json()
+	assert appointments
+
+	appointment = appointments[0]
+	response = client.patch(
+		f"/appointments/{appointment['id']}",
+		headers=headers,
+		json={"status": "cancelled"},
+	)
+
+	assert response.status_code == 200
+	assert response.json()["status"] == "cancelled"
+
 def test_client_cannot_confirm_own_appointment():
     headers = get_auth_headers()
 

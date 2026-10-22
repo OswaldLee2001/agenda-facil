@@ -208,6 +208,15 @@ class AppointmentUpdate(BaseModel):
 		return value
 
 
+class AppointmentStatusUpdate(BaseModel):
+    status: Literal[
+        "scheduled",
+        "confirmed",
+        "completed",
+        "cancelled",
+    ]
+
+
 class AppointmentResponse(BaseModel):
 	id: int
 	professional_id: int

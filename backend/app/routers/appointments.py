@@ -20,6 +20,7 @@ from app.schemas import (
     AppointmentCreate,
     AppointmentUpdate,
     AppointmentResponse,
+    AppointmentStatusUpdate,
     MessageResponse,
 )
 
@@ -595,6 +596,56 @@ def update_appointment(
         raise HTTPException(
             status_code=500,
             detail="Erro ao atualizar o agendamento.",
+        )
+
+    db.refresh(appointment)
+    return appointment
+
+
+@router.patch("/{appointment_id}", response_model=AppointmentResponse)
+def update_appointment_status(
+    appointment_id: int,
+    status_data: AppointmentStatusUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    appointment = (
+        db.query(Appointments)
+        .filter(Appointments.id == appointment_id)
+        .first()
+    )
+
+    if appointment is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Agendamento não encontrado.",
+        )
+
+    ensure_appointment_access(db, appointment, current_user)
+
+    if current_user.role == "client" and status_data.status not in {
+        appointment.status,
+        "cancelled",
+    }:
+        raise HTTPException(
+            status_code=403,
+            detail="Clientes só podem cancelar seus próprios agendamentos.",
+        )
+
+    validate_status_transition(
+        current_status=appointment.status,
+        new_status=status_data.status,
+    )
+
+    appointment.status = status_data.status
+
+    try:
+        db.commit()
+    except SQLAlchemyError:
+        db.rollback()
+        raise HTTPException(
+            status_code=500,
+            detail="Erro ao atualizar o status do agendamento.",
         )
 
     db.refresh(appointment)
