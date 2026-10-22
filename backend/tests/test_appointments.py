@@ -445,26 +445,60 @@ def test_client_can_cancel_own_appointment():
 
 
 def test_client_can_cancel_appointment_with_status_only():
-	headers = get_auth_headers()
+    headers = get_auth_headers()
 
-	list_response = client.get(
-		"/appointments/",
-		headers=headers,
-	)
+    list_response = client.get(
+        "/appointments/",
+        headers=headers,
+    )
 
-	assert list_response.status_code == 200
-	appointments = list_response.json()
-	assert appointments
+    assert list_response.status_code == 200
+    appointments = list_response.json()
+    assert appointments
 
-	appointment = appointments[0]
-	response = client.patch(
-		f"/appointments/{appointment['id']}",
-		headers=headers,
-		json={"status": "cancelled"},
-	)
+    appointment = appointments[0]
+    response = client.patch(
+        f"/appointments/{appointment['id']}",
+        headers=headers,
+        json={"status": "cancelled"},
+    )
 
-	assert response.status_code == 200
-	assert response.json()["status"] == "cancelled"
+    assert response.status_code == 200
+    assert response.json()["status"] == "cancelled"
+
+
+def test_client_cannot_cancel_another_clients_appointment_with_patch():
+    from app.core.security import hash_password
+    from app.database import get_db
+    from app.models import Appointments, User
+
+    db = next(app.dependency_overrides[get_db]())
+
+    other_user = User(
+        name="Outro Cliente",
+        email="outro.cliente.patch@teste.com",
+        hashed_password=hash_password("OutroCliente123!"),
+        is_active=True,
+        role="client",
+    )
+
+    db.add(other_user)
+    db.commit()
+
+    appointment = db.query(Appointments).first()
+    assert appointment is not None
+
+    response = client.patch(
+        f"/appointments/{appointment.id}",
+        headers=get_headers_for(
+            "outro.cliente.patch@teste.com",
+            "OutroCliente123!",
+        ),
+        json={"status": "cancelled"},
+    )
+
+    assert response.status_code == 404
+
 
 def test_client_cannot_confirm_own_appointment():
     headers = get_auth_headers()
