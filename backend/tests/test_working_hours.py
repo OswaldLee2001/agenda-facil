@@ -278,6 +278,45 @@ def test_update_working_hour_allows_admin():
 
     assert update_response.status_code == 200
 
+def test_update_working_hour_rejects_overlap():
+    headers = get_admin_headers()
+
+    first_response = client.post(
+        "/professionals/2/working-hours/",
+        json={
+            "weekday": 6,
+            "start_time": "08:00",
+            "end_time": "10:00",
+        },
+        headers=headers,
+    )
+    assert first_response.status_code == 200
+
+    second_response = client.post(
+        "/professionals/2/working-hours/",
+        json={
+            "weekday": 6,
+            "start_time": "10:00",
+            "end_time": "12:00",
+        },
+        headers=headers,
+    )
+    assert second_response.status_code == 200
+
+    second_id = second_response.json()["id"]
+
+    update_response = client.put(
+        f"/professionals/2/working-hours/{second_id}",
+        json={
+            "weekday": 6,
+            "start_time": "09:00",
+            "end_time": "11:00",
+        },
+        headers=headers,
+    )
+
+    assert update_response.status_code == 409
+    assert "sobrepõe" in update_response.json()["detail"]
 
 def test_delete_working_hour_allows_admin():
     create_response = client.post(
@@ -367,7 +406,6 @@ def test_delete_working_hour_allows_professional():
 
     assert delete_response.status_code == 200
     assert "excluído com sucesso" in delete_response.json()["message"]
-
 
 def test_professional_cannot_create_working_hours_for_another_professional():
     from app.database import get_db
