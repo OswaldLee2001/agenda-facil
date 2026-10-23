@@ -452,6 +452,7 @@ def update_appointment(
     appointment = (
         db.query(Appointments)
         .filter(Appointments.id == appointment_id)
+        .with_for_update()
         .first()
     )
 
@@ -612,6 +613,7 @@ def update_appointment_status(
     appointment = (
         db.query(Appointments)
         .filter(Appointments.id == appointment_id)
+        .with_for_update()
         .first()
     )
 

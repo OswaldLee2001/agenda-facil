@@ -1161,3 +1161,86 @@ def test_concurrent_bookings_reject_duplicate_slot():
         else:
             app.dependency_overrides.pop(get_db, None)
 
+def test_for_update_blocks_second_session():
+    from concurrent.futures import ThreadPoolExecutor
+    from threading import Event
+
+    import pytest
+    from sqlalchemy import text
+    from sqlalchemy.exc import OperationalError
+
+    from app.models import Appointments
+    from conftest import TestSessionLocal
+
+    first_db = TestSessionLocal()
+    executor = ThreadPoolExecutor(max_workers=1)
+    second_query_started = Event()
+    future = None
+
+    try:
+        appointment = (
+            first_db.query(Appointments)
+            .order_by(Appointments.id)
+            .with_for_update()
+            .first()
+        )
+
+        assert appointment is not None
+
+        appointment_id = appointment.id
+
+        def query_from_second_session():
+            second_db = TestSessionLocal()
+
+            try:
+                second_db.execute(
+                    text("SET LOCAL lock_timeout = '1s'")
+                )
+                second_query_started.set()
+
+                return (
+                    second_db.query(Appointments)
+                    .filter(Appointments.id == appointment_id)
+                    .with_for_update()
+                    .first()
+                )
+            finally:
+                second_db.rollback()
+                second_db.close()
+
+        future = executor.submit(query_from_second_session)
+
+        assert second_query_started.wait(timeout=5)
+
+        with pytest.raises(OperationalError) as exc_info:
+            future.result(timeout=5)
+
+        assert exc_info.value.orig.sqlstate == "55P03"
+
+        first_db.commit()
+
+        def query_after_lock_release():
+            second_db = TestSessionLocal()
+
+            try:
+                return (
+                    second_db.query(Appointments)
+                    .filter(Appointments.id == appointment_id)
+                    .with_for_update()
+                    .first()
+                )
+            finally:
+                second_db.rollback()
+                second_db.close()
+
+        result = executor.submit(query_after_lock_release).result(timeout=5)
+
+        assert result is not None
+
+    finally:
+        if first_db.in_transaction():
+            first_db.rollback()
+
+        first_db.close()
+        executor.shutdown(wait=True)
+
